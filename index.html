@@ -125,12 +125,8 @@
 
             <!-- Bộ Chọn Bàn Thử Nghiệm -->
             <div class="flex items-center gap-2">
-                <span class="text-xs text-gray-400">Đổi bàn demo:</span>
-                <select onchange="changeTable(this.value)" class="bg-[#121620] border border-gray-700 text-amber-300 text-xs rounded-xl px-3 py-2 font-bold focus:outline-none focus:border-amber-500">
-                    <option value="Bàn 06 - Sân Vườn">Bàn 06 - Sân Vườn</option>
-                    <option value="Bàn 02 - Tầng 1">Bàn 02 - Tầng 1</option>
-                    <option value="Bàn 08 - Tầng 2">Bàn 08 - Tầng 2</option>
-                    <option value="Phòng VIP 1 - Máy Lạnh">Phòng VIP 1 - Máy Lạnh</option>
+                <span class="text-xs text-gray-400">Chọn bàn:</span>
+                <select id="table-selector" onchange="changeTable(this.value)" class="bg-[#121620] border border-gray-700 text-amber-300 text-xs rounded-xl px-3 py-2 font-bold focus:outline-none focus:border-amber-500">
                 </select>
             </div>
         </div>
@@ -139,7 +135,7 @@
             <div class="flex flex-wrap items-center justify-between gap-3">
                 <div>
                     <h2 class="font-black text-amber-400"><i class="fa-solid fa-pen-to-square mr-2"></i>Quản lý thực đơn</h2>
-                    <p class="mt-1 text-xs text-gray-400">Thêm món, giá và ảnh để hiển thị ngay trong thực đơn.</p>
+                    <p class="mt-1 text-xs text-gray-400">Thêm món, ẩn món không cần bán và quản lý danh sách bàn.</p>
                 </div>
                 <button type="button" onclick="toggleMenuManager()" id="btn-toggle-menu-manager" class="rounded-xl border border-amber-500/40 px-4 py-2 text-xs font-bold text-amber-300 transition hover:bg-amber-500 hover:text-black">
                     <i class="fa-solid fa-plus mr-1"></i> Thêm món mới
@@ -181,6 +177,20 @@
                     <button type="submit" class="rounded-xl bg-amber-500 px-5 py-2 text-xs font-black text-black transition hover:bg-amber-400"><i class="fa-solid fa-floppy-disk mr-1"></i>Lưu món</button>
                 </div>
             </form>
+            <details class="mt-4 border-t border-gray-800 pt-3">
+                <summary class="cursor-pointer text-sm font-bold text-gray-200">Quản lý món hiện có</summary>
+                <p class="mt-2 text-xs text-gray-500">Món bị ẩn sẽ không hiện trong thực đơn; lịch sử đơn cũ vẫn được giữ. Có thể bật lại bất cứ lúc nào.</p>
+                <div id="menu-manager-items" class="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2"></div>
+            </details>
+            <details class="mt-4 border-t border-gray-800 pt-3">
+                <summary class="cursor-pointer text-sm font-bold text-gray-200">Tùy chỉnh tên bàn</summary>
+                <p class="mt-2 text-xs text-gray-500">Nhập tên mỗi bàn trên một dòng. Thứ tự dòng là thứ tự hiển thị; đơn cũ vẫn giữ tên bàn lúc đặt.</p>
+                <label for="table-names-input" class="sr-only">Danh sách tên bàn, mỗi bàn một dòng</label>
+                <textarea id="table-names-input" rows="5" maxlength="7000" class="mt-3 w-full rounded-xl border border-gray-700 bg-[#10141d] px-3 py-2 text-sm text-white outline-none focus:border-amber-500" placeholder="Bàn 1&#10;Bàn 2&#10;Phòng VIP"></textarea>
+                <div class="mt-2 flex justify-end">
+                    <button type="button" onclick="saveTableNames()" class="rounded-xl bg-amber-500 px-4 py-2 text-xs font-black text-black transition hover:bg-amber-400"><i class="fa-solid fa-floppy-disk mr-1"></i>Lưu danh sách bàn</button>
+                </div>
+            </details>
         </section>
 
         <!-- Các Nút Dịch Vụ 1-Chạm -->
@@ -531,10 +541,12 @@
             ];
             const initialState = {
                 table: 'Bàn 06 - Sân Vườn',
+                tables: ['Bàn 06 - Sân Vườn', 'Bàn 02 - Tầng 1', 'Bàn 08 - Tầng 2', 'Phòng VIP 1 - Máy Lạnh'],
                 cart: {},
                 orders: [],
                 services: [],
                 customMenuItems: [],
+                hiddenMenuItemIds: [],
                 paymentHistory: [],
                 recipientAccount: null,
                 audio: true
@@ -558,6 +570,8 @@
                         if (!Array.isArray(state.orders)) state.orders = [];
                         if (!Array.isArray(state.services)) state.services = [];
                         if (!Array.isArray(state.customMenuItems)) state.customMenuItems = [];
+                        if (!Array.isArray(state.tables)) state.tables = [...initialState.tables];
+                        if (!Array.isArray(state.hiddenMenuItemIds)) state.hiddenMenuItemIds = [];
                         if (!Array.isArray(state.paymentHistory)) state.paymentHistory = [];
                         if (!state.recipientAccount || typeof state.recipientAccount !== 'object') state.recipientAccount = null;
                     }
@@ -565,6 +579,13 @@
             } catch (error) {
                 console.error('Không thể đọc dữ liệu demo đã lưu:', error);
             }
+            state.tables = [...new Set(state.tables
+                .filter(table => typeof table === 'string')
+                .map(table => table.trim())
+                .filter(Boolean))].slice(0, 100);
+            if (!state.tables.length) state.tables = [...initialState.tables];
+            state.hiddenMenuItemIds = [...new Set(state.hiddenMenuItemIds.filter(id => typeof id === 'string'))];
+            if (!state.tables.includes(state.table)) state.table = state.tables[0];
             if (state.recipientAccount) {
                 const account = state.recipientAccount;
                 state.recipientAccount = typeof account.bankName === 'string' &&
@@ -769,8 +790,15 @@
             }
 
             function renderMenu() {
-                const items = menu.filter(item => menuFilter === 'all' || item.category === menuFilter);
+                const items = menu.filter(item =>
+                    !state.hiddenMenuItemIds.includes(item.id) &&
+                    (menuFilter === 'all' || item.category === menuFilter)
+                );
                 const grid = document.getElementById('grid-menu');
+                if (!items.length) {
+                    grid.innerHTML = '<p class="col-span-full rounded-xl border border-gray-800 p-6 text-center text-sm text-gray-400">Danh mục này hiện chưa có món.</p>';
+                    return;
+                }
                 grid.innerHTML = items.map(item => {
                     const photo = imageSource(item.image);
                     return `
@@ -798,6 +826,33 @@
                         photo.nextElementSibling.classList.remove('hidden');
                     }, { once: true });
                 });
+            }
+
+            function renderMenuManagerItems() {
+                const container = document.getElementById('menu-manager-items');
+                container.innerHTML = menu.map(item => {
+                    const isHidden = state.hiddenMenuItemIds.includes(item.id);
+                    return `<div class="flex items-center justify-between gap-3 rounded-xl border border-gray-800 bg-[#10141d] p-3">
+                        <div class="min-w-0">
+                            <p class="truncate text-sm font-bold text-white">${escapeHtml(item.name)}</p>
+                            <p class="text-xs text-gray-400">${money(item.price)} đ · ${isHidden ? 'Đang ẩn' : 'Đang bán'}</p>
+                        </div>
+                        <button type="button" onclick="toggleMenuItem('${item.id}')" class="shrink-0 rounded-lg border ${isHidden ? 'border-emerald-500/40 text-emerald-300 hover:bg-emerald-500/10' : 'border-gray-700 text-gray-300 hover:border-amber-500/50 hover:text-amber-300'} px-3 py-1.5 text-xs font-bold transition">
+                            ${isHidden ? 'Hiện lại' : 'Ẩn món'}
+                        </button>
+                    </div>`;
+                }).join('');
+            }
+
+            function renderTableSelector() {
+                const selector = document.getElementById('table-selector');
+                selector.innerHTML = state.tables.map(table =>
+                    `<option value="${escapeHtml(table)}">${escapeHtml(table)}</option>`
+                ).join('');
+                selector.value = state.table;
+                document.getElementById('table-names-input').value = state.tables.join('\n');
+                document.getElementById('label-table-name').textContent = state.table.toUpperCase();
+                document.getElementById('label-modal-table').textContent = `Bàn: ${state.table}`;
             }
 
             function renderCart() {
@@ -1032,10 +1087,87 @@
             };
 
             window.changeTable = table => {
+                if (!state.tables.includes(table)) {
+                    showToast('Bàn đã chọn không nằm trong danh sách hiện tại.', true);
+                    renderTableSelector();
+                    return;
+                }
+
+                const previousTable = state.table;
                 state.table = table;
-                document.getElementById('label-table-name').textContent = table.toUpperCase();
-                document.getElementById('label-modal-table').textContent = `Bàn: ${table}`;
-                saveState();
+                if (!saveState()) {
+                    state.table = previousTable;
+                    renderTableSelector();
+                    return;
+                }
+                renderTableSelector();
+            };
+
+            window.saveTableNames = () => {
+                const input = document.getElementById('table-names-input').value;
+                const tables = input.split(/\r?\n/).map(table => table.trim()).filter(Boolean);
+                const uniqueNames = new Set(tables.map(table => table.toLocaleLowerCase('vi-VN')));
+
+                if (!tables.length) {
+                    showToast('Danh sách cần có ít nhất một tên bàn.', true);
+                    return;
+                }
+                if (tables.length > 100) {
+                    showToast('Chỉ có thể cấu hình tối đa 100 bàn.', true);
+                    return;
+                }
+                if (tables.some(table => table.length > 60)) {
+                    showToast('Mỗi tên bàn không được dài quá 60 ký tự.', true);
+                    return;
+                }
+                if (uniqueNames.size !== tables.length) {
+                    showToast('Danh sách có tên bàn bị trùng.', true);
+                    return;
+                }
+
+                const previousTables = state.tables;
+                const previousTable = state.table;
+                state.tables = tables;
+                if (!tables.includes(state.table)) state.table = tables[0];
+                if (!saveState()) {
+                    state.tables = previousTables;
+                    state.table = previousTable;
+                    renderTableSelector();
+                    return;
+                }
+
+                renderTableSelector();
+                showToast(`Đã lưu danh sách ${tables.length} bàn.`);
+            };
+
+            window.toggleMenuItem = id => {
+                const item = menu.find(menuItem => menuItem.id === id);
+                if (!item) {
+                    showToast('Không tìm thấy món cần cập nhật.', true);
+                    return;
+                }
+
+                const wasHidden = state.hiddenMenuItemIds.includes(id);
+                const previousHiddenIds = state.hiddenMenuItemIds;
+                const previousCart = state.cart;
+                state.hiddenMenuItemIds = wasHidden
+                    ? state.hiddenMenuItemIds.filter(hiddenId => hiddenId !== id)
+                    : [...state.hiddenMenuItemIds, id];
+                if (!wasHidden && state.cart[id]) {
+                    state.cart = { ...state.cart };
+                    delete state.cart[id];
+                }
+
+                if (!saveState()) {
+                    state.hiddenMenuItemIds = previousHiddenIds;
+                    state.cart = previousCart;
+                    return;
+                }
+
+                renderMenu();
+                renderMenuManagerItems();
+                renderCart();
+                showToast(wasHidden ? `Đã hiện lại “${item.name}”.` : `Đã ẩn “${item.name}” khỏi thực đơn.`);
             };
 
             window.requestService = request => {
@@ -1142,6 +1274,7 @@
                     }
 
                     renderMenu();
+                    renderMenuManagerItems();
                     renderCart();
                     form.reset();
                     toggleMenuManager(false);
@@ -1358,9 +1491,8 @@
             });
             document.getElementById('payment-method').value = 'cash';
 
-            document.querySelector('select[onchange="changeTable(this.value)"]').value = state.table;
-            document.getElementById('label-table-name').textContent = state.table.toUpperCase();
-            document.getElementById('label-modal-table').textContent = `Bàn: ${state.table}`;
+            renderTableSelector();
+            renderMenuManagerItems();
             document.getElementById('audio-text').textContent = state.audio ? 'Chuông: Bật' : 'Chuông: Tắt';
             document.getElementById('audio-icon').className = `fa-solid ${state.audio ? 'fa-bell text-amber-400' : 'fa-bell-slash text-gray-500'}`;
             renderMenu();
