@@ -1,0 +1,1270 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bếp Số & Thực Đơn Lẩu Việt Nam | Zero-Hardware KDS</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        amberGold: {
+                            50: '#fffbeb',
+                            100: '#fef3c7',
+                            400: '#fbbf24',
+                            500: '#f59e0b',
+                            600: '#d97706'
+                        },
+                        kds: {
+                            bg: '#0c0f17',
+                            card: '#161b26',
+                            cardBorder: '#273142',
+                            wait: '#f59e0b',     // Vàng chờ làm
+                            cooking: '#3b82f6',  // Xanh dương đang nấu
+                            done: '#10b981',     // Xanh lá ra món
+                            urgent: '#ef4444'    // Đỏ trễ
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+                        mono: ['"JetBrains Mono"', 'monospace']
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #0c0f17; }
+        ::-webkit-scrollbar-thumb { background: #334155; border-radius: 9999px; }
+        ::-webkit-scrollbar-thumb:hover { background: #f59e0b; }
+
+        @keyframes urgentPulse {
+            0%, 100% { border-color: rgba(239, 68, 68, 0.9); box-shadow: 0 0 16px rgba(239, 68, 68, 0.4); }
+            50% { border-color: rgba(239, 68, 68, 0.2); box-shadow: none; }
+        }
+        .card-urgent {
+            animation: urgentPulse 1.6s infinite ease-in-out;
+        }
+    </style>
+</head>
+<body class="bg-[#0f141d] text-gray-100 font-sans min-h-screen selection:bg-amber-500 selection:text-black antialiased">
+
+    <!-- THANH ĐIỀU HƯỚNG TRÊN CÙNG -->
+    <header class="bg-[#161c27] border-b border-gray-800 sticky top-0 z-50 px-3 sm:px-6 py-2.5 flex items-center justify-between shadow-lg">
+        <div class="flex items-center space-x-3">
+            <div class="flex items-center gap-2">
+                <span class="w-3 h-3 rounded-full bg-emerald-400 animate-pulse"></span>
+                <span class="font-extrabold tracking-wide text-sm sm:text-base text-amber-400">
+                    LẨU VIỆT & BẾP SỐ
+                </span>
+            </div>
+            <span class="hidden md:inline text-xs text-gray-400 border-l border-gray-700 pl-3">
+                Giải pháp Bếp KDS 0-Đồng Thiết Bị
+            </span>
+        </div>
+
+        <div class="flex items-center gap-2 sm:gap-3">
+            <!-- Nút bật tắt chuông -->
+            <button onclick="toggleAudio()" id="btn-audio" class="p-2 sm:px-3 sm:py-1.5 rounded-xl bg-gray-800 hover:bg-gray-700 text-gray-300 text-xs flex items-center gap-1.5 transition border border-gray-700">
+                <i class="fa-solid fa-bell text-amber-400" id="audio-icon"></i>
+                <span class="hidden sm:inline" id="audio-text">Chuông: Bật</span>
+            </button>
+
+            <!-- Chuyển chế độ Khách <-> Bếp -->
+            <div class="bg-black/60 p-1 rounded-xl border border-gray-700 flex items-center">
+                <button onclick="switchView('guest')" id="tab-guest" class="px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 bg-amber-500 text-black shadow">
+                    <i class="fa-solid fa-utensils"></i>
+                    <span>Bàn Khách</span>
+                </button>
+                <button onclick="switchView('kds')" id="tab-kds" class="px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 text-gray-300 hover:text-white">
+                    <i class="fa-solid fa-tv text-blue-400"></i>
+                    <span>Màn Hình Bếp (KDS)</span>
+                    <span id="badge-kds-count" class="ml-1 px-1.5 py-0.2 rounded-full bg-amber-500 text-black text-[10px] font-black">0</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- ========================================================================= -->
+    <!-- 1. GIAO DIỆN BÀN KHÁCH GỌI MÓN (THUẦN VIỆT) -->
+    <!-- ========================================================================= -->
+    <main id="view-guest" class="max-w-6xl mx-auto p-3 sm:p-6 pb-28 space-y-6">
+        <!-- Banner Thông Tin Bàn -->
+        <div class="rounded-3xl bg-gradient-to-r from-[#241711] via-[#1a212f] to-[#171a24] border border-amber-500/30 p-4 sm:p-6 shadow-xl flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div>
+                <div class="flex items-center gap-2 text-amber-400 text-xs font-bold uppercase tracking-wider mb-1">
+                    <i class="fa-solid fa-fire text-amber-500"></i>
+                    <span>Hệ Thống Gọi Món Trực Tiếp Tại Bàn</span>
+                </div>
+                <div class="flex items-center gap-3">
+                    <h1 class="text-2xl sm:text-3xl font-extrabold text-white" id="label-table-name">
+                        BÀN 06 - SÂN VƯỜN
+                    </h1>
+                    <span class="text-xs px-2.5 py-1 bg-amber-500/10 text-amber-300 border border-amber-500/30 rounded-lg font-bold">
+                        Đang phục vụ
+                    </span>
+                </div>
+                <p class="text-xs text-gray-300 mt-2 max-w-xl leading-relaxed">
+                    Chọn món trực tiếp trên điện thoại/máy tính bảng. Đơn sẽ bắn thẳng về màn hình bếp mà không cần gọi phục vụ hay viết giấy.
+                </p>
+            </div>
+
+            <!-- Bộ Chọn Bàn Thử Nghiệm -->
+            <div class="flex items-center gap-2">
+                <span class="text-xs text-gray-400">Đổi bàn demo:</span>
+                <select onchange="changeTable(this.value)" class="bg-[#121620] border border-gray-700 text-amber-300 text-xs rounded-xl px-3 py-2 font-bold focus:outline-none focus:border-amber-500">
+                    <option value="Bàn 06 - Sân Vườn">Bàn 06 - Sân Vườn</option>
+                    <option value="Bàn 02 - Tầng 1">Bàn 02 - Tầng 1</option>
+                    <option value="Bàn 08 - Tầng 2">Bàn 08 - Tầng 2</option>
+                    <option value="Phòng VIP 1 - Máy Lạnh">Phòng VIP 1 - Máy Lạnh</option>
+                </select>
+            </div>
+        </div>
+
+        <section class="rounded-2xl border border-amber-500/25 bg-[#161b26] p-4 shadow">
+            <div class="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                    <h2 class="font-black text-amber-400"><i class="fa-solid fa-pen-to-square mr-2"></i>Quản lý thực đơn</h2>
+                    <p class="mt-1 text-xs text-gray-400">Thêm món, giá và ảnh để hiển thị ngay trong thực đơn.</p>
+                </div>
+                <button type="button" onclick="toggleMenuManager()" id="btn-toggle-menu-manager" class="rounded-xl border border-amber-500/40 px-4 py-2 text-xs font-bold text-amber-300 transition hover:bg-amber-500 hover:text-black">
+                    <i class="fa-solid fa-plus mr-1"></i> Thêm món mới
+                </button>
+            </div>
+            <form id="menu-manager-form" class="hidden mt-4 grid grid-cols-1 gap-3 border-t border-gray-800 pt-4 sm:grid-cols-2">
+                <label class="text-xs font-bold text-gray-300">
+                    Tên món *
+                    <input id="new-menu-name" required maxlength="80" class="mt-1 w-full rounded-xl border border-gray-700 bg-[#10141d] px-3 py-2 text-sm text-white outline-none focus:border-amber-500" placeholder="Ví dụ: Lẩu riêu cua">
+                </label>
+                <label class="text-xs font-bold text-gray-300">
+                    Giá (VNĐ) *
+                    <input id="new-menu-price" required type="number" min="1" step="1000" class="mt-1 w-full rounded-xl border border-gray-700 bg-[#10141d] px-3 py-2 text-sm text-white outline-none focus:border-amber-500" placeholder="Ví dụ: 199000">
+                </label>
+                <label class="text-xs font-bold text-gray-300">
+                    Danh mục *
+                    <select id="new-menu-category" required class="mt-1 w-full rounded-xl border border-gray-700 bg-[#10141d] px-3 py-2 text-sm text-white outline-none focus:border-amber-500">
+                        <option value="hotpot">Nồi lẩu & nước dùng</option>
+                        <option value="meat">Thịt bò & hải sản</option>
+                        <option value="vege">Rau, nấm & đậu</option>
+                        <option value="drinks">Đồ uống</option>
+                    </select>
+                </label>
+                <label class="text-xs font-bold text-gray-300">
+                    Mô tả
+                    <input id="new-menu-description" maxlength="160" class="mt-1 w-full rounded-xl border border-gray-700 bg-[#10141d] px-3 py-2 text-sm text-white outline-none focus:border-amber-500" placeholder="Mô tả ngắn về món ăn">
+                </label>
+                <label class="text-xs font-bold text-gray-300">
+                    Ảnh món từ máy/điện thoại
+                    <input id="new-menu-image-file" type="file" accept="image/*" class="mt-1 block w-full rounded-xl border border-gray-700 bg-[#10141d] px-3 py-2 text-xs text-gray-300 file:mr-3 file:rounded-lg file:border-0 file:bg-amber-500 file:px-3 file:py-1 file:font-bold file:text-black">
+                </label>
+                <label class="text-xs font-bold text-gray-300">
+                    Hoặc dán đường dẫn ảnh
+                    <input id="new-menu-image-url" type="url" class="mt-1 w-full rounded-xl border border-gray-700 bg-[#10141d] px-3 py-2 text-sm text-white outline-none focus:border-amber-500" placeholder="https://...">
+                </label>
+                <p class="sm:col-span-2 text-[11px] text-gray-500">Nếu chọn cả ảnh tải lên và đường dẫn, ảnh tải lên sẽ được dùng. Món đã thêm được lưu trên trình duyệt này.</p>
+                <div class="sm:col-span-2 flex justify-end gap-2">
+                    <button type="button" onclick="toggleMenuManager(false)" class="rounded-xl border border-gray-700 px-4 py-2 text-xs font-bold text-gray-300 hover:bg-gray-800">Hủy</button>
+                    <button type="submit" class="rounded-xl bg-amber-500 px-5 py-2 text-xs font-black text-black transition hover:bg-amber-400"><i class="fa-solid fa-floppy-disk mr-1"></i>Lưu món</button>
+                </div>
+            </form>
+        </section>
+
+        <!-- Các Nút Dịch Vụ 1-Chạm -->
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+            <button onclick="requestService('Xin thêm nước lẩu')" class="bg-[#161b26] hover:bg-[#1e2535] border border-gray-800 hover:border-amber-500/50 rounded-2xl p-3 text-left transition flex items-center justify-between group active:scale-95 shadow">
+                <div>
+                    <div class="text-xs sm:text-sm font-bold text-amber-400">Thêm nước lẩu</div>
+                    <div class="text-[11px] text-gray-400">Nước dùng miễn phí</div>
+                </div>
+                <i class="fa-solid fa-water text-gray-500 group-hover:text-amber-400 transition text-lg"></i>
+            </button>
+            <button onclick="requestService('Thêm đá lạnh & Trà đá')" class="bg-[#161b26] hover:bg-[#1e2535] border border-gray-800 hover:border-amber-500/50 rounded-2xl p-3 text-left transition flex items-center justify-between group active:scale-95 shadow">
+                <div>
+                    <div class="text-xs sm:text-sm font-bold text-amber-400">Đá lạnh & Trà</div>
+                    <div class="text-[11px] text-gray-400">Thêm ca đá hoặc trà</div>
+                </div>
+                <i class="fa-solid fa-cubes-stacked text-gray-500 group-hover:text-amber-400 transition text-lg"></i>
+            </button>
+            <button onclick="requestService('Đổi bát đĩa, muôi lẩu mới')" class="bg-[#161b26] hover:bg-[#1e2535] border border-gray-800 hover:border-amber-500/50 rounded-2xl p-3 text-left transition flex items-center justify-between group active:scale-95 shadow">
+                <div>
+                    <div class="text-xs sm:text-sm font-bold text-amber-400">Đổi bát đĩa</div>
+                    <div class="text-[11px] text-gray-400">Chén, đũa, muôi lẩu</div>
+                </div>
+                <i class="fa-solid fa-utensils text-gray-500 group-hover:text-amber-400 transition text-lg"></i>
+            </button>
+            <button onclick="requestService('Yêu cầu thanh toán tiền bàn')" class="bg-[#161b26] hover:bg-[#1e2535] border border-gray-800 hover:border-amber-500/50 rounded-2xl p-3 text-left transition flex items-center justify-between group active:scale-95 shadow">
+                <div>
+                    <div class="text-xs sm:text-sm font-bold text-amber-400">Yêu cầu tính tiền</div>
+                    <div class="text-[11px] text-gray-400">Chuẩn bị hóa đơn</div>
+                </div>
+                <i class="fa-solid fa-receipt text-gray-500 group-hover:text-amber-400 transition text-lg"></i>
+            </button>
+        </div>
+
+        <!-- Phân Loại Món Ăn -->
+        <div class="flex items-center space-x-2 overflow-x-auto pb-2 scrollbar-none border-b border-gray-800">
+            <button onclick="filterMenu('all')" class="cat-btn active px-4 py-2 rounded-xl text-xs sm:text-sm font-bold whitespace-nowrap bg-amber-500 text-black transition">
+                Tất Cả Món
+            </button>
+            <button onclick="filterMenu('hotpot')" class="cat-btn px-4 py-2 rounded-xl text-xs sm:text-sm font-bold whitespace-nowrap bg-[#161b26] border border-gray-800 text-gray-300 hover:border-amber-500/40 transition">
+                <i class="fa-solid fa-fire-burner mr-1.5 text-amber-400"></i>Nồi Lẩu & Nước Dùng
+            </button>
+            <button onclick="filterMenu('meat')" class="cat-btn px-4 py-2 rounded-xl text-xs sm:text-sm font-bold whitespace-nowrap bg-[#161b26] border border-gray-800 text-gray-300 hover:border-amber-500/40 transition">
+                <i class="fa-solid fa-drumstick-bite mr-1.5 text-amber-400"></i>Thịt Bò & Hải Sản Nhúng
+            </button>
+            <button onclick="filterMenu('vege')" class="cat-btn px-4 py-2 rounded-xl text-xs sm:text-sm font-bold whitespace-nowrap bg-[#161b26] border border-gray-800 text-gray-300 hover:border-amber-500/40 transition">
+                <i class="fa-solid fa-seedling mr-1.5 text-emerald-400"></i>Rau Xanh, Nấm & Đậu
+            </button>
+            <button onclick="filterMenu('drinks')" class="cat-btn px-4 py-2 rounded-xl text-xs sm:text-sm font-bold whitespace-nowrap bg-[#161b26] border border-gray-800 text-gray-300 hover:border-amber-500/40 transition">
+                <i class="fa-solid fa-beer-mug-empty mr-1.5 text-amber-400"></i>Bia, Trà & Nước Giải Khát
+            </button>
+        </div>
+
+        <!-- Lưới Danh Sách Món -->
+        <div id="grid-menu" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            <!-- Render bằng JavaScript -->
+        </div>
+    </main>
+
+    <!-- THANH NỔI GỌI MÓN Ở ĐÁY MÀN HÌNH -->
+    <div id="bar-bottom-cart" class="fixed bottom-0 left-0 right-0 bg-[#141a24]/95 border-t border-amber-500/30 p-3 sm:p-4 backdrop-blur-md z-40">
+        <div class="max-w-6xl mx-auto flex items-center justify-between gap-4">
+            <div class="flex items-center gap-3 cursor-pointer" onclick="openCart()">
+                <div class="relative">
+                    <div class="w-12 h-12 rounded-2xl bg-gradient-to-tr from-amber-600 to-amber-400 text-black flex items-center justify-center font-black text-lg shadow-lg">
+                        <i class="fa-solid fa-basket-shopping"></i>
+                    </div>
+                    <span id="label-cart-badge" class="absolute -top-1.5 -right-1.5 bg-red-600 border-2 border-[#141a24] text-white text-[11px] font-black w-5 h-5 rounded-full flex items-center justify-center">
+                        0
+                    </span>
+                </div>
+                <div>
+                    <div class="text-xs text-gray-400">Đĩa món đã chọn:</div>
+                    <div class="text-base sm:text-lg font-black text-amber-400">
+                        <span id="label-cart-total">0</span> đ
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex items-center gap-2">
+                <button onclick="openCart()" class="px-3 sm:px-4 py-2.5 rounded-xl border border-gray-700 hover:border-amber-500 text-gray-200 text-xs sm:text-sm font-bold transition">
+                    Kiểm Tra Bàn
+                </button>
+                <button onclick="sendOrderToKitchen()" id="btn-send-order" disabled class="px-4 sm:px-6 py-2.5 rounded-xl bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-500 hover:to-amber-400 text-black font-black text-xs sm:text-sm flex items-center gap-2 shadow-xl transition transform active:scale-95 disabled:opacity-40 disabled:pointer-events-none">
+                    <i class="fa-solid fa-paper-plane text-xs"></i>
+                    <span>Bắn Đơn Sang Bếp KDS</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========================================================================= -->
+    <!-- 2. MÀN HÌNH BẾP SỐ (KDS - DÀNH CHO BẾP & PHỤC VỤ) -->
+    <!-- ========================================================================= -->
+    <main id="view-kds" class="hidden min-h-[calc(100vh-65px)] bg-kds-bg p-3 sm:p-5 space-y-4">
+        <!-- Thanh Quản Lý Trạng Thái Bếp -->
+        <div class="bg-kds-card border border-kds-cardBorder rounded-2xl p-4 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 shadow-xl">
+            <div class="flex items-center gap-3">
+                <div class="w-12 h-12 rounded-xl bg-blue-500/10 border border-blue-500/30 flex items-center justify-center text-blue-400 text-2xl font-bold">
+                    <i class="fa-solid fa-tv"></i>
+                </div>
+                <div>
+                    <div class="flex items-center gap-2">
+                        <h2 class="text-lg sm:text-xl font-extrabold text-white tracking-wide">
+                            ĐIỀU HÀNH BẾP SỐ (KDS)
+                        </h2>
+                        <span class="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 text-[10px] font-mono font-bold">
+                            TRỰC TIẾP
+                        </span>
+                    </div>
+                    <p class="text-xs text-gray-400">
+                        Chạm 1-chạm vào món để đổi trạng thái: <span class="text-amber-400 font-bold">Chờ nấu</span> $\rightarrow$ <span class="text-blue-400 font-bold">Đang nấu</span> $\rightarrow$ <span class="text-emerald-400 font-bold">Ra món</span>
+                    </p>
+                </div>
+            </div>
+
+            <!-- Bộ lọc trạng thái đơn -->
+            <div class="flex items-center flex-wrap gap-2 w-full md:w-auto">
+                <button onclick="filterKds('all')" class="kds-pill active px-3 py-1.5 rounded-xl text-xs font-bold bg-gray-700 text-white transition">
+                    Tất Cả (<span id="count-all">0</span>)
+                </button>
+                <button onclick="filterKds('pending')" class="kds-pill px-3 py-1.5 rounded-xl text-xs font-bold bg-[#1e2533] text-amber-300 border border-amber-500/30 hover:bg-gray-700 transition">
+                    Chờ Nấu (<span id="count-pending">0</span>)
+                </button>
+                <button onclick="filterKds('cooking')" class="kds-pill px-3 py-1.5 rounded-xl text-xs font-bold bg-[#1e2533] text-blue-300 border border-blue-500/30 hover:bg-gray-700 transition">
+                    Đang Nấu (<span id="count-cooking">0</span>)
+                </button>
+                <button type="button" onclick="openAccountSettings()" class="px-3 py-1.5 rounded-xl border border-emerald-500/30 bg-emerald-500/10 text-xs font-bold text-emerald-300 transition hover:bg-emerald-500 hover:text-black">
+                    <i class="fa-solid fa-building-columns mr-1"></i> Cấu hình QR nhận tiền
+                </button>
+                <button onclick="clearDoneOrders()" class="px-3 py-1.5 rounded-xl text-xs font-bold bg-gray-800 hover:bg-red-900/50 text-gray-300 hover:text-red-200 border border-gray-700 ml-auto transition">
+                    <i class="fa-solid fa-broom mr-1"></i> Dọn Đơn Xong
+                </button>
+            </div>
+        </div>
+
+        <!-- Thông Báo Yêu Cầu Nhanh (Thêm nước lẩu, trà đá, tính tiền) -->
+        <div id="box-service-alerts" class="space-y-2">
+            <!-- Render qua JS -->
+        </div>
+
+        <!-- Lưới Thẻ Đơn KDS To Bản Dành Cho Máy Tính Bảng / Điện Thoại Kệ Bếp -->
+        <div id="grid-kds-cards" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            <!-- Thẻ đơn sinh ra bằng JS -->
+        </div>
+
+        <section class="overflow-hidden rounded-2xl border border-kds-cardBorder bg-kds-card shadow-xl">
+            <div class="flex flex-wrap items-center justify-between gap-3 border-b border-gray-700 p-4">
+                <div>
+                    <h2 class="font-extrabold text-white"><i class="fa-solid fa-receipt mr-2 text-emerald-400"></i>Lịch sử thanh toán</h2>
+                    <p class="mt-1 text-xs text-gray-400">Các đơn đã thanh toán trên trình duyệt này.</p>
+                </div>
+                <div class="text-right">
+                    <div class="text-[11px] text-gray-400">Tổng đã thu</div>
+                    <div id="payment-history-total" class="font-black text-emerald-300">0 đ</div>
+                </div>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full min-w-[640px] text-left text-xs">
+                    <thead class="bg-black/20 text-gray-400">
+                        <tr>
+                            <th class="p-3 font-bold">Thời gian</th>
+                            <th class="p-3 font-bold">Mã đơn</th>
+                            <th class="p-3 font-bold">Bàn</th>
+                            <th class="p-3 font-bold">Phương thức</th>
+                            <th class="p-3 text-right font-bold">Số tiền</th>
+                        </tr>
+                    </thead>
+                    <tbody id="payment-history-rows" class="divide-y divide-gray-800 text-gray-200"></tbody>
+                </table>
+            </div>
+            <p id="payment-history-empty" class="hidden p-6 text-center text-sm text-gray-500">Chưa có giao dịch thanh toán nào.</p>
+        </section>
+    </main>
+
+    <!-- ========================================================================= -->
+    <!-- MODAL: XEM LẠI ĐƠN HÀNG TRƯỚC KHI GỬI -->
+    <!-- ========================================================================= -->
+    <div id="modal-cart" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-3 sm:p-4 hidden">
+        <div class="bg-[#161c28] border border-amber-500/40 rounded-3xl w-full max-w-lg max-h-[90vh] flex flex-col overflow-hidden shadow-2xl">
+            <div class="p-4 border-b border-gray-800 flex justify-between items-center bg-[#1e2535]">
+                <div class="flex items-center gap-2">
+                    <span class="w-8 h-8 rounded-lg bg-amber-500 text-black flex items-center justify-center font-bold">
+                        <i class="fa-solid fa-list-check"></i>
+                    </span>
+                    <div>
+                        <h3 class="font-extrabold text-amber-400 text-base">Danh Sách Món Bàn Đã Chọn</h3>
+                        <div class="text-[11px] text-gray-300" id="label-modal-table">Bàn: Bàn 06 - Sân Vườn</div>
+                    </div>
+                </div>
+                <button onclick="closeCart()" class="text-gray-400 hover:text-white p-2">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+
+            <div id="cart-items-list" class="p-4 overflow-y-auto space-y-3 flex-1">
+                <!-- Danh sách món trong giỏ -->
+            </div>
+
+            <div class="p-4 border-t border-gray-800 bg-[#121620] space-y-3">
+                <div class="flex justify-between items-center">
+                    <span class="text-xs text-gray-400">Tổng tạm tính:</span>
+                    <span class="text-lg font-black text-amber-400" id="label-modal-total">0 đ</span>
+                </div>
+                <div class="flex gap-2">
+                    <button onclick="resetCart()" class="px-4 py-2.5 rounded-xl border border-gray-700 hover:border-red-500 text-gray-400 hover:text-red-400 text-xs font-bold transition">
+                        Xóa tất cả
+                    </button>
+                    <button onclick="sendOrderToKitchen()" class="flex-1 py-3 rounded-xl bg-gradient-to-r from-amber-600 to-amber-500 text-black font-black text-sm flex items-center justify-center gap-2 shadow-xl hover:from-amber-500 hover:to-amber-400 transition active:scale-95">
+                        <i class="fa-solid fa-paper-plane"></i>
+                        <span>Xác Nhận Gửi Bếp</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="modal-payment" class="hidden fixed inset-0 z-[60] flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="payment-title">
+        <form id="payment-form" class="w-full max-w-md rounded-3xl border border-emerald-500/40 bg-[#161c28] p-5 shadow-2xl">
+            <div class="flex items-start justify-between gap-3">
+                <div>
+                    <h2 id="payment-title" class="text-lg font-black text-emerald-300">Ghi nhận thanh toán</h2>
+                    <p id="payment-order-label" class="mt-1 text-xs text-gray-400"></p>
+                </div>
+                <button type="button" onclick="closePayment()" class="rounded-lg p-2 text-gray-400 hover:bg-gray-800 hover:text-white" aria-label="Đóng">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            <div class="mt-4 rounded-xl bg-black/20 p-4">
+                <div class="text-xs text-gray-400">Tổng tiền đơn</div>
+                <div id="payment-order-total" class="mt-1 text-2xl font-black text-amber-400">0 đ</div>
+            </div>
+            <label class="mt-4 block text-xs font-bold text-gray-300">
+                Phương thức thanh toán
+                <select id="payment-method" required class="mt-1 w-full rounded-xl border border-gray-700 bg-[#10141d] px-3 py-2.5 text-sm text-white outline-none focus:border-emerald-500">
+                    <option value="cash">Tiền mặt</option>
+                    <option value="transfer">Chuyển khoản</option>
+                    <option value="card">Thẻ ngân hàng</option>
+                </select>
+            </label>
+            <div id="transfer-details" class="hidden mt-4 rounded-2xl border border-emerald-500/30 bg-emerald-500/5 p-4">
+                <p class="text-xs font-bold text-emerald-300">Quét QR để chuyển khoản đúng số tiền và nội dung</p>
+                <div id="payment-qr-unconfigured" class="mt-3 hidden rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-200">
+                    Chưa cấu hình tài khoản nhận tiền.
+                    <button type="button" onclick="openAccountSettings()" class="mt-2 block font-bold underline">Cấu hình tài khoản ngay</button>
+                </div>
+                <div id="payment-qr-ready" class="hidden mt-3 flex-col items-center gap-3 sm:flex-row">
+                    <div id="payment-qr" class="rounded-xl bg-white p-2"></div>
+                    <div class="min-w-0 text-xs text-gray-300">
+                        <p id="payment-account-display" class="font-bold text-white"></p>
+                        <p class="mt-1">Nội dung: <strong id="payment-reference" class="break-all text-emerald-300"></strong></p>
+                        <p class="mt-2 text-[11px] text-amber-200">App chưa tự nhận biến động số dư. Chỉ xác nhận sau khi tự kiểm tra tiền đã vào tài khoản.</p>
+                    </div>
+                </div>
+                <p id="payment-qr-error" class="hidden mt-2 text-xs text-red-300"></p>
+            </div>
+            <p class="mt-3 text-[11px] text-gray-500">Xác nhận sẽ ghi nhận thanh toán toàn bộ đơn và không thể ghi thu lần thứ hai.</p>
+            <div class="mt-5 flex gap-2">
+                <button type="button" onclick="closePayment()" class="flex-1 rounded-xl border border-gray-700 px-4 py-2.5 text-sm font-bold text-gray-300 hover:bg-gray-800">Hủy</button>
+                <button id="confirm-payment-button" type="submit" class="flex-1 rounded-xl bg-emerald-500 px-4 py-2.5 text-sm font-black text-black transition hover:bg-emerald-400"><i class="fa-solid fa-check mr-1"></i>Xác nhận đã thu</button>
+            </div>
+        </form>
+    </div>
+
+    <div id="modal-account-settings" class="hidden fixed inset-0 z-[70] flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="account-settings-title">
+        <form id="account-settings-form" class="w-full max-w-md rounded-3xl border border-emerald-500/40 bg-[#161c28] p-5 shadow-2xl">
+            <div class="flex items-start justify-between gap-3">
+                <div>
+                    <h2 id="account-settings-title" class="text-lg font-black text-emerald-300">Tài khoản nhận chuyển khoản</h2>
+                    <p class="mt-1 text-xs text-gray-400">Thông tin được lưu cục bộ trong trình duyệt này.</p>
+                </div>
+                <button type="button" onclick="closeAccountSettings()" class="rounded-lg p-2 text-gray-400 hover:bg-gray-800 hover:text-white" aria-label="Đóng">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            <label class="mt-4 block text-xs font-bold text-gray-300">
+                Tên ngân hàng *
+                <input id="account-bank-name" required maxlength="80" class="mt-1 w-full rounded-xl border border-gray-700 bg-[#10141d] px-3 py-2.5 text-sm text-white outline-none focus:border-emerald-500" placeholder="Ví dụ: Vietcombank">
+            </label>
+            <label class="mt-3 block text-xs font-bold text-gray-300">
+                Mã BIN ngân hàng (6 chữ số) *
+                <input id="account-bank-bin" required inputmode="numeric" pattern="[0-9]{6}" maxlength="6" class="mt-1 w-full rounded-xl border border-gray-700 bg-[#10141d] px-3 py-2.5 text-sm text-white outline-none focus:border-emerald-500" placeholder="Ví dụ: 970436">
+            </label>
+            <label class="mt-3 block text-xs font-bold text-gray-300">
+                Số tài khoản *
+                <input id="account-number" required maxlength="25" pattern="[A-Za-z0-9]{5,25}" class="mt-1 w-full rounded-xl border border-gray-700 bg-[#10141d] px-3 py-2.5 text-sm text-white outline-none focus:border-emerald-500" placeholder="Số tài khoản nhận tiền">
+            </label>
+            <label class="mt-3 block text-xs font-bold text-gray-300">
+                Tên chủ tài khoản *
+                <input id="account-holder" required maxlength="100" class="mt-1 w-full rounded-xl border border-gray-700 bg-[#10141d] px-3 py-2.5 text-sm uppercase text-white outline-none focus:border-emerald-500" placeholder="NGUYEN VAN A">
+            </label>
+            <p class="mt-3 text-[11px] text-gray-500">Hãy kiểm tra kỹ mã BIN và số tài khoản trước khi dùng. Tên chủ tài khoản sẽ được ngân hàng hiển thị khi khách quét QR.</p>
+            <div class="mt-5 flex gap-2">
+                <button type="button" onclick="closeAccountSettings()" class="flex-1 rounded-xl border border-gray-700 px-4 py-2.5 text-sm font-bold text-gray-300 hover:bg-gray-800">Hủy</button>
+                <button type="submit" class="flex-1 rounded-xl bg-emerald-500 px-4 py-2.5 text-sm font-black text-black transition hover:bg-emerald-400"><i class="fa-solid fa-floppy-disk mr-1"></i>Lưu tài khoản</button>
+            </div>
+        </form>
+    </div>
+
+    <!-- MODAL: THÔNG BÁO BẮN ĐƠN THÀNH CÔNG -->
+    <div id="modal-success" class="hidden fixed inset-0 bg-black/80 backdrop-blur-sm z-[60] flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="success-title">
+        <div class="w-full max-w-sm rounded-3xl border border-emerald-500/40 bg-[#161c28] p-6 text-center shadow-2xl">
+            <div class="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-emerald-500/15 text-emerald-400 text-2xl">
+                <i class="fa-solid fa-check"></i>
+            </div>
+            <h2 id="success-title" class="text-xl font-black text-white">Đã gửi đơn đến bếp!</h2>
+            <p id="success-message" class="mt-2 text-sm text-gray-400">Bếp đã nhận được món của bàn.</p>
+            <button type="button" onclick="closeSuccess()" class="mt-5 w-full rounded-xl bg-emerald-500 px-4 py-2.5 font-bold text-black hover:bg-emerald-400 transition">Đóng</button>
+        </div>
+    </div>
+
+    <div id="toast" class="hidden fixed right-4 bottom-24 z-[70] max-w-sm rounded-xl border border-emerald-500/40 bg-[#121620] px-4 py-3 text-sm font-bold text-emerald-300 shadow-xl" role="status" aria-live="polite"></div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <script>
+        (() => {
+            const STORAGE_KEY = 'lau-viet-kds-demo-v1';
+            const defaultMenu = [
+                { id: 'mala', name: 'Lẩu Tứ Xuyên', category: 'hotpot', description: 'Nước lẩu cay nồng, thơm vị hoa tiêu.', price: 189000, icon: 'fa-fire-burner' },
+                { id: 'mushroom-broth', name: 'Lẩu Nấm Thanh Ngọt', category: 'hotpot', description: 'Nước dùng ninh rau củ và nấm tự nhiên.', price: 159000, icon: 'fa-bowl-food' },
+                { id: 'beef-australia', name: 'Ba Chỉ Bò Úc', category: 'meat', description: 'Thịt bò thái lát mỏng, mềm ngọt.', price: 219000, icon: 'fa-drumstick-bite' },
+                { id: 'beef-brisket', name: 'Gầu Bò Mỹ', category: 'meat', description: 'Gầu bò vân mỡ, thích hợp nhúng lẩu.', price: 239000, icon: 'fa-bone' },
+                { id: 'shrimp', name: 'Tôm Sú Tươi', category: 'meat', description: 'Tôm sú tươi, sơ chế sạch.', price: 189000, icon: 'fa-shrimp' },
+                { id: 'fish-ball', name: 'Viên Cá Thác Lác', category: 'meat', description: 'Viên cá dai ngon, làm trong ngày.', price: 99000, icon: 'fa-fish' },
+                { id: 'mushroom-set', name: 'Đĩa Nấm Tổng Hợp', category: 'vege', description: 'Nấm kim châm, nấm đùi gà và nấm hương.', price: 89000, icon: 'fa-leaf' },
+                { id: 'greens', name: 'Rau Theo Mùa', category: 'vege', description: 'Rau xanh tươi theo ngày.', price: 69000, icon: 'fa-seedling' },
+                { id: 'tofu', name: 'Đậu Hũ Non', category: 'vege', description: 'Đậu hũ mềm, dùng kèm nước lẩu.', price: 49000, icon: 'fa-cube' },
+                { id: 'beer', name: 'Bia Lạnh', category: 'drinks', description: 'Bia ướp lạnh, phục vụ theo lon.', price: 35000, icon: 'fa-beer-mug-empty' },
+                { id: 'tea', name: 'Trà Đào', category: 'drinks', description: 'Trà đào mát lạnh, ít ngọt.', price: 45000, icon: 'fa-mug-hot' },
+                { id: 'water', name: 'Nước Suối', category: 'drinks', description: 'Nước suối đóng chai.', price: 20000, icon: 'fa-bottle-water' }
+            ];
+            const initialState = {
+                table: 'Bàn 06 - Sân Vườn',
+                cart: {},
+                orders: [],
+                services: [],
+                customMenuItems: [],
+                paymentHistory: [],
+                recipientAccount: null,
+                audio: true
+            };
+            let state = { ...initialState };
+            let menuFilter = 'all';
+            let kdsFilter = 'all';
+            let toastTimer;
+            let nextId = 1;
+            let paymentOrderId = null;
+            let transferQrReady = false;
+            const paymentMethodLabels = { cash: 'Tiền mặt', transfer: 'Chuyển khoản', card: 'Thẻ ngân hàng' };
+
+            try {
+                const stored = localStorage.getItem(STORAGE_KEY);
+                if (stored) {
+                    const parsed = JSON.parse(stored);
+                    if (parsed && typeof parsed === 'object') {
+                        state = { ...initialState, ...parsed };
+                        if (!state.cart || typeof state.cart !== 'object') state.cart = {};
+                        if (!Array.isArray(state.orders)) state.orders = [];
+                        if (!Array.isArray(state.services)) state.services = [];
+                        if (!Array.isArray(state.customMenuItems)) state.customMenuItems = [];
+                        if (!Array.isArray(state.paymentHistory)) state.paymentHistory = [];
+                        if (!state.recipientAccount || typeof state.recipientAccount !== 'object') state.recipientAccount = null;
+                    }
+                }
+            } catch (error) {
+                console.error('Không thể đọc dữ liệu demo đã lưu:', error);
+            }
+            if (state.recipientAccount) {
+                const account = state.recipientAccount;
+                state.recipientAccount = typeof account.bankName === 'string' &&
+                    /^\d{6}$/.test(account.bankBin) &&
+                    /^[A-Za-z0-9]{5,25}$/.test(account.accountNumber) &&
+                    typeof account.accountHolder === 'string'
+                    ? {
+                        bankName: account.bankName.trim(),
+                        bankBin: account.bankBin,
+                        accountNumber: account.accountNumber,
+                        accountHolder: account.accountHolder.trim()
+                    }
+                    : null;
+            }
+            const validCategories = new Set(['hotpot', 'meat', 'vege', 'drinks']);
+            const categoryIcons = { hotpot: 'fa-fire-burner', meat: 'fa-drumstick-bite', vege: 'fa-leaf', drinks: 'fa-mug-hot' };
+            const customMenuItems = state.customMenuItems.filter(item =>
+                item &&
+                typeof item.id === 'string' &&
+                /^custom-[\w-]+$/.test(item.id) &&
+                typeof item.name === 'string' &&
+                validCategories.has(item.category) &&
+                Number.isFinite(Number(item.price)) &&
+                Number(item.price) > 0
+            ).map(item => ({
+                id: item.id,
+                name: item.name,
+                category: item.category,
+                description: typeof item.description === 'string' ? item.description : '',
+                price: Number(item.price),
+                image: imageSource(item.image),
+                icon: categoryIcons[item.category]
+            }));
+            state.customMenuItems = customMenuItems;
+            const menu = [...defaultMenu, ...customMenuItems];
+
+            function saveState() {
+                try {
+                    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+                    return true;
+                } catch (error) {
+                    console.error('Không thể lưu dữ liệu demo:', error);
+                    showToast('Không lưu được dữ liệu trên trình duyệt.', true);
+                    return false;
+                }
+            }
+
+            function escapeHtml(value) {
+                return String(value).replace(/[&<>"']/g, character => ({
+                    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+                })[character]);
+            }
+
+            function imageSource(value) {
+                if (typeof value !== 'string') return '';
+                if (/^data:image\/(?:jpeg|png|webp);base64,/i.test(value)) return value;
+                try {
+                    const url = new URL(value);
+                    return url.protocol === 'https:' || url.protocol === 'http:' ? url.href : '';
+                } catch {
+                    return '';
+                }
+            }
+
+            function money(value) {
+                return new Intl.NumberFormat('vi-VN').format(value);
+            }
+
+            function tlv(id, value) {
+                const text = String(value);
+                if (!/^[\x20-\x7E]*$/.test(text) || text.length > 99) {
+                    throw new Error('Dữ liệu QR không hợp lệ hoặc quá dài.');
+                }
+                return `${id}${String(text.length).padStart(2, '0')}${text}`;
+            }
+
+            function crc16CcittFalse(value) {
+                let crc = 0xFFFF;
+                for (const byte of new TextEncoder().encode(value)) {
+                    crc ^= byte << 8;
+                    for (let bit = 0; bit < 8; bit++) {
+                        crc = crc & 0x8000 ? ((crc << 1) ^ 0x1021) & 0xFFFF : (crc << 1) & 0xFFFF;
+                    }
+                }
+                return crc.toString(16).toUpperCase().padStart(4, '0');
+            }
+
+            function buildVietQrPayload(account, amount, reference) {
+                const beneficiary = tlv('00', account.bankBin) + tlv('01', account.accountNumber);
+                const napasAccount = tlv('00', 'A000000727') + tlv('01', beneficiary) + tlv('02', 'QRIBFTTA');
+                const additionalData = tlv('08', reference);
+                const payload = tlv('00', '01') +
+                    tlv('01', '12') +
+                    tlv('38', napasAccount) +
+                    tlv('53', '704') +
+                    tlv('54', String(Math.round(amount))) +
+                    tlv('58', 'VN') +
+                    tlv('62', additionalData) +
+                    '6304';
+                return payload + crc16CcittFalse(payload);
+            }
+
+            function renderPaymentTransferDetails() {
+                const transfer = document.getElementById('payment-method').value === 'transfer';
+                const details = document.getElementById('transfer-details');
+                const unconfigured = document.getElementById('payment-qr-unconfigured');
+                const ready = document.getElementById('payment-qr-ready');
+                const error = document.getElementById('payment-qr-error');
+                const confirmButton = document.getElementById('confirm-payment-button');
+
+                transferQrReady = false;
+                details.classList.toggle('hidden', !transfer);
+                confirmButton.innerHTML = transfer
+                    ? '<i class="fa-solid fa-check mr-1"></i>Xác nhận đã nhận tiền'
+                    : '<i class="fa-solid fa-check mr-1"></i>Xác nhận đã thu';
+                confirmButton.disabled = transfer;
+                if (!transfer) {
+                    confirmButton.disabled = false;
+                    return;
+                }
+
+                const order = state.orders.find(item => item.id === paymentOrderId);
+                if (!order) return;
+                if (!state.recipientAccount) {
+                    unconfigured.classList.remove('hidden');
+                    ready.classList.add('hidden');
+                    error.classList.add('hidden');
+                    return;
+                }
+
+                unconfigured.classList.add('hidden');
+                ready.classList.remove('hidden');
+                ready.classList.add('flex');
+                error.classList.add('hidden');
+                document.getElementById('payment-account-display').textContent =
+                    `${state.recipientAccount.bankName} · ${state.recipientAccount.accountNumber} · ${state.recipientAccount.accountHolder}`;
+                const reference = `DH${order.id.replace(/[^A-Z0-9]/gi, '')}`.slice(0, 25);
+                document.getElementById('payment-reference').textContent = reference;
+                const qr = document.getElementById('payment-qr');
+                qr.replaceChildren();
+
+                try {
+                    if (typeof QRCode !== 'function') throw new Error('Không tải được thư viện tạo QR. Hãy kiểm tra kết nối mạng rồi tải lại trang.');
+                    const payload = buildVietQrPayload(state.recipientAccount, orderTotal(order), reference);
+                    new QRCode(qr, {
+                        text: payload,
+                        width: 220,
+                        height: 220,
+                        colorDark: '#000000',
+                        colorLight: '#ffffff',
+                        correctLevel: QRCode.CorrectLevel.M
+                    });
+                    transferQrReady = true;
+                    confirmButton.disabled = false;
+                } catch (errorValue) {
+                    console.error('Không thể tạo mã VietQR:', errorValue);
+                    error.textContent = errorValue.message || 'Không thể tạo mã QR cho đơn này.';
+                    error.classList.remove('hidden');
+                }
+            }
+
+            function cartQuantity() {
+                return Object.values(state.cart).reduce((total, quantity) => total + quantity, 0);
+            }
+
+            function cartTotal() {
+                return menu.reduce((total, item) => total + item.price * (state.cart[item.id] || 0), 0);
+            }
+
+            function orderTotal(order) {
+                if (typeof order.total === 'number' && Number.isFinite(order.total)) return order.total;
+                return order.items.reduce((total, item) => total + Number(item.price || 0) * Number(item.quantity || 0), 0);
+            }
+
+            function showToast(message, isError = false) {
+                const toast = document.getElementById('toast');
+                toast.textContent = message;
+                toast.className = `fixed right-4 bottom-24 z-[70] max-w-sm rounded-xl border px-4 py-3 text-sm font-bold shadow-xl ${isError ? 'border-red-500/40 bg-[#121620] text-red-300' : 'border-emerald-500/40 bg-[#121620] text-emerald-300'}`;
+                clearTimeout(toastTimer);
+                toastTimer = setTimeout(() => toast.classList.add('hidden'), 3000);
+            }
+
+            function playChime() {
+                if (!state.audio) return;
+                try {
+                    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+                    if (!AudioContextClass) return;
+                    const context = new AudioContextClass();
+                    const oscillator = context.createOscillator();
+                    const gain = context.createGain();
+                    oscillator.connect(gain);
+                    gain.connect(context.destination);
+                    oscillator.frequency.value = 880;
+                    gain.gain.setValueAtTime(0.06, context.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.001, context.currentTime + 0.3);
+                    oscillator.start();
+                    oscillator.stop(context.currentTime + 0.3);
+                    oscillator.onended = () => context.close();
+                } catch (error) {
+                    console.error('Không thể phát âm báo:', error);
+                }
+            }
+
+            function renderMenu() {
+                const items = menu.filter(item => menuFilter === 'all' || item.category === menuFilter);
+                const grid = document.getElementById('grid-menu');
+                grid.innerHTML = items.map(item => {
+                    const photo = imageSource(item.image);
+                    return `
+                    <article class="overflow-hidden rounded-2xl border border-gray-800 bg-[#161b26] shadow-lg">
+                        <div class="relative flex h-40 items-center justify-center overflow-hidden bg-gradient-to-br from-[#322114] via-[#1d2430] to-[#121620] text-4xl text-amber-400">
+                            ${photo
+                                ? `<img data-menu-photo src="${escapeHtml(photo)}" alt="${escapeHtml(item.name)}" class="h-full w-full object-cover"><i class="hidden fa-solid ${item.icon}"></i>`
+                                : `<i class="fa-solid ${item.icon}"></i>`}
+                        </div>
+                        <div class="p-4">
+                            <div class="flex items-start justify-between gap-3">
+                                <h3 class="font-black text-white">${escapeHtml(item.name)}</h3>
+                                <span class="whitespace-nowrap text-xs font-bold text-amber-400">${money(item.price)} đ</span>
+                            </div>
+                            <p class="mt-2 min-h-8 text-xs text-gray-400">${escapeHtml(item.description)}</p>
+                            <button type="button" onclick="addToCart('${item.id}')" class="mt-3 w-full rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm font-bold text-amber-300 transition hover:bg-amber-500 hover:text-black">
+                                <i class="fa-solid fa-plus mr-1"></i> Thêm món
+                            </button>
+                        </div>
+                    </article>`;
+                }).join('');
+                grid.querySelectorAll('[data-menu-photo]').forEach(photo => {
+                    photo.addEventListener('error', () => {
+                        photo.classList.add('hidden');
+                        photo.nextElementSibling.classList.remove('hidden');
+                    }, { once: true });
+                });
+            }
+
+            function renderCart() {
+                const quantity = cartQuantity();
+                const total = cartTotal();
+                document.getElementById('label-cart-badge').textContent = quantity;
+                document.getElementById('label-cart-total').textContent = money(total);
+                document.getElementById('label-modal-total').textContent = `${money(total)} đ`;
+                document.getElementById('btn-send-order').disabled = quantity === 0;
+                const selected = menu.filter(item => state.cart[item.id]);
+                document.getElementById('cart-items-list').innerHTML = selected.length ? selected.map(item => `
+                    <div class="flex items-center justify-between gap-3 border-b border-gray-800 pb-3">
+                        <div class="min-w-0">
+                            <p class="font-bold text-white">${escapeHtml(item.name)}</p>
+                            <p class="text-xs text-amber-400">${money(item.price)} đ × ${state.cart[item.id]} = ${money(item.price * state.cart[item.id])} đ</p>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <button type="button" onclick="changeQuantity('${item.id}', -1)" class="h-8 w-8 rounded-lg bg-gray-800 font-bold text-white" aria-label="Giảm số lượng">−</button>
+                            <span class="w-5 text-center font-bold">${state.cart[item.id]}</span>
+                            <button type="button" onclick="changeQuantity('${item.id}', 1)" class="h-8 w-8 rounded-lg bg-gray-800 font-bold text-white" aria-label="Tăng số lượng">+</button>
+                        </div>
+                    </div>`).join('') : '<p class="py-6 text-center text-sm text-gray-400">Chưa có món nào trong giỏ.</p>';
+            }
+
+            function renderKds() {
+                const orders = [...state.orders].sort((a, b) => b.createdAt - a.createdAt);
+                const filtered = orders.filter(order => kdsFilter === 'all' || order.status === kdsFilter);
+                const counts = {
+                    all: orders.length,
+                    pending: orders.filter(order => order.status === 'pending').length,
+                    cooking: orders.filter(order => order.status === 'cooking').length
+                };
+                document.getElementById('count-all').textContent = counts.all;
+                document.getElementById('count-pending').textContent = counts.pending;
+                document.getElementById('count-cooking').textContent = counts.cooking;
+                document.getElementById('badge-kds-count').textContent = counts.pending + state.services.filter(service => !service.done).length;
+
+                document.getElementById('box-service-alerts').innerHTML = state.services
+                    .filter(service => !service.done)
+                    .sort((a, b) => b.createdAt - a.createdAt)
+                    .map(service => `<div class="flex items-center justify-between gap-3 rounded-xl border border-purple-500/30 bg-purple-500/10 p-3">
+                        <div><p class="text-[11px] uppercase tracking-wide text-purple-300">Yêu cầu • ${escapeHtml(service.table)}</p><p class="font-bold text-white">${escapeHtml(service.request)}</p></div>
+                        <button type="button" onclick="completeService('${service.id}')" class="shrink-0 rounded-lg bg-purple-500/20 px-3 py-2 text-xs font-bold text-purple-200 hover:bg-purple-500 hover:text-white">Đã xử lý</button>
+                    </div>`).join('');
+
+                document.getElementById('grid-kds-cards').innerHTML = filtered.map(order => {
+                    const statusStyles = {
+                        pending: { border: 'border-amber-500/40', badge: 'bg-amber-500/15', text: 'text-amber-300', label: 'Chờ nấu' },
+                        cooking: { border: 'border-blue-500/40', badge: 'bg-blue-500/15', text: 'text-blue-300', label: 'Đang nấu' },
+                        done: { border: 'border-emerald-500/40', badge: 'bg-emerald-500/15', text: 'text-emerald-300', label: 'Đã ra món' }
+                    };
+                    const status = statusStyles[order.status] || statusStyles.pending;
+                    const payment = state.paymentHistory.find(item => item.orderId === order.id);
+                    const isPaid = order.paymentStatus === 'paid' || Boolean(payment);
+                    const action = order.status === 'done'
+                        ? '<p class="mt-4 text-center text-sm font-bold text-emerald-300"><i class="fa-solid fa-circle-check mr-1"></i> Đơn đã hoàn tất</p>'
+                        : `<button type="button" onclick="advanceOrder('${order.id}')" class="mt-4 w-full rounded-xl ${order.status === 'cooking' ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-300 hover:bg-emerald-500' : 'bg-blue-500/15 border-blue-500/40 text-blue-300 hover:bg-blue-500'} border px-3 py-2 text-sm font-bold transition hover:text-black">
+                            ${order.status === 'cooking' ? 'Đánh dấu đã ra món' : 'Bắt đầu nấu'} <i class="fa-solid fa-arrow-right ml-1"></i>
+                        </button>`;
+                    const paymentStatus = isPaid
+                        ? `<p class="mt-3 text-center text-xs font-bold text-emerald-300"><i class="fa-solid fa-circle-check mr-1"></i>Đã thanh toán${paymentMethodLabels[order.paymentMethod || payment?.method] ? ` · ${paymentMethodLabels[order.paymentMethod || payment.method]}` : ''}</p>`
+                        : `<button type="button" onclick="openPayment('${order.id}')" class="mt-3 w-full rounded-xl border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm font-bold text-amber-300 transition hover:bg-amber-500 hover:text-black"><i class="fa-solid fa-money-bill-wave mr-1"></i>Ghi nhận thanh toán</button>`;
+                    return `<article class="rounded-2xl border ${status.border} bg-kds-card p-4 shadow-lg">
+                        <div class="flex items-start justify-between gap-3">
+                            <div><p class="text-[11px] uppercase tracking-wide text-gray-500">${escapeHtml(order.table)}</p><h3 class="mt-1 font-mono font-bold text-amber-300">${escapeHtml(order.id)}</h3></div>
+                            <span class="rounded-full ${status.badge} px-2.5 py-1 text-xs font-bold ${status.text}">${status.label}</span>
+                        </div>
+                        <ul class="mt-3 space-y-1 text-sm text-gray-300">${order.items.map(item => `<li class="flex justify-between gap-2"><span>${escapeHtml(item.name)}</span><strong>× ${item.quantity}</strong></li>`).join('')}</ul>
+                        <p class="mt-3 border-t border-gray-700 pt-3 text-right text-sm font-black text-amber-400">Tổng: ${money(orderTotal(order))} đ</p>
+                        <div class="mt-3 text-[11px] text-gray-500">${new Date(order.createdAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}</div>
+                        ${action}
+                        ${paymentStatus}
+                    </article>`;
+                }).join('');
+
+                const filterNames = ['all', 'pending', 'cooking'];
+                document.querySelectorAll('.kds-pill').forEach((button, index) => {
+                    button.classList.toggle('ring-2', filterNames[index] === kdsFilter);
+                    button.classList.toggle('ring-amber-400', filterNames[index] === kdsFilter);
+                });
+                renderPaymentHistory();
+            }
+
+            function renderPaymentHistory() {
+                const payments = [...state.paymentHistory].sort((a, b) => b.paidAt - a.paidAt);
+                const total = payments.reduce((sum, payment) => sum + Number(payment.amount || 0), 0);
+                const rows = document.getElementById('payment-history-rows');
+                const empty = document.getElementById('payment-history-empty');
+                document.getElementById('payment-history-total').textContent = `${money(total)} đ`;
+                empty.classList.toggle('hidden', payments.length > 0);
+                rows.innerHTML = payments.slice(0, 100).map(payment => `
+                    <tr>
+                        <td class="whitespace-nowrap p-3">${new Date(payment.paidAt).toLocaleString('vi-VN')}</td>
+                        <td class="whitespace-nowrap p-3 font-mono text-amber-300">${escapeHtml(payment.orderId)}</td>
+                        <td class="p-3">${escapeHtml(payment.table)}</td>
+                        <td class="p-3">${escapeHtml(paymentMethodLabels[payment.method] || payment.method)}</td>
+                        <td class="whitespace-nowrap p-3 text-right font-bold text-emerald-300">${money(payment.amount)} đ</td>
+                    </tr>`).join('');
+            }
+
+            window.toggleMenuManager = show => {
+                const form = document.getElementById('menu-manager-form');
+                const shouldShow = typeof show === 'boolean' ? show : form.classList.contains('hidden');
+                form.classList.toggle('hidden', !shouldShow);
+                if (shouldShow) document.getElementById('new-menu-name').focus();
+            };
+
+            async function compressImage(file) {
+                if (!file.type.startsWith('image/')) throw new Error('Vui lòng chọn tệp hình ảnh.');
+                if (file.size > 15 * 1024 * 1024) throw new Error('Ảnh gốc quá lớn (tối đa 15 MB).');
+                if (typeof createImageBitmap !== 'function') throw new Error('Trình duyệt chưa hỗ trợ xử lý ảnh. Em có thể dán đường dẫn ảnh.');
+
+                const bitmap = await createImageBitmap(file);
+                const scale = Math.min(1, 960 / Math.max(bitmap.width, bitmap.height));
+                const canvas = document.createElement('canvas');
+                canvas.width = Math.max(1, Math.round(bitmap.width * scale));
+                canvas.height = Math.max(1, Math.round(bitmap.height * scale));
+                const context = canvas.getContext('2d');
+                if (!context) {
+                    bitmap.close();
+                    throw new Error('Không thể xử lý ảnh này.');
+                }
+                context.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+                bitmap.close();
+
+                for (let quality = 0.82; quality >= 0.5; quality -= 0.08) {
+                    const compressed = canvas.toDataURL('image/jpeg', quality);
+                    if (compressed.length <= 450000) return compressed;
+                }
+                throw new Error('Ảnh vẫn quá lớn sau khi nén. Hãy chọn ảnh nhỏ hơn hoặc dùng đường dẫn ảnh.');
+            }
+
+            window.toggleAudio = () => {
+                state.audio = !state.audio;
+                document.getElementById('audio-text').textContent = state.audio ? 'Chuông: Bật' : 'Chuông: Tắt';
+                document.getElementById('audio-icon').className = `fa-solid ${state.audio ? 'fa-bell text-amber-400' : 'fa-bell-slash text-gray-500'}`;
+                saveState();
+                showToast(state.audio ? 'Đã bật chuông.' : 'Đã tắt chuông.');
+            };
+
+            window.switchView = view => {
+                const isGuest = view !== 'kds';
+                document.getElementById('view-guest').classList.toggle('hidden', !isGuest);
+                document.getElementById('bar-bottom-cart').classList.toggle('hidden', !isGuest);
+                document.getElementById('view-kds').classList.toggle('hidden', isGuest);
+                document.getElementById('tab-guest').className = `px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 ${isGuest ? 'bg-amber-500 text-black shadow' : 'text-gray-300 hover:text-white'}`;
+                document.getElementById('tab-kds').className = `px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 ${isGuest ? 'text-gray-300 hover:text-white' : 'bg-amber-500 text-black shadow'}`;
+                if (!isGuest) renderKds();
+            };
+
+            window.changeTable = table => {
+                state.table = table;
+                document.getElementById('label-table-name').textContent = table.toUpperCase();
+                document.getElementById('label-modal-table').textContent = `Bàn: ${table}`;
+                saveState();
+            };
+
+            window.requestService = request => {
+                state.services.push({
+                    id: `SRV-${Date.now()}-${nextId++}`,
+                    table: state.table,
+                    request,
+                    createdAt: Date.now(),
+                    done: false
+                });
+                renderKds();
+                saveState();
+                playChime();
+                showToast(`Đã gửi yêu cầu “${request}” đến bếp.`);
+            };
+
+            window.filterMenu = category => {
+                menuFilter = category;
+                document.querySelectorAll('.cat-btn').forEach(button => {
+                    button.classList.remove('bg-amber-500', 'text-black', 'active');
+                    button.classList.add('bg-[#161b26]', 'text-gray-300');
+                });
+                const categories = ['all', 'hotpot', 'meat', 'vege', 'drinks'];
+                const selected = document.querySelectorAll('.cat-btn')[categories.indexOf(category)];
+                if (selected) {
+                    selected.classList.add('bg-amber-500', 'text-black', 'active');
+                    selected.classList.remove('bg-[#161b26]', 'text-gray-300');
+                }
+                renderMenu();
+            };
+
+            window.addToCart = id => {
+                if (!menu.some(item => item.id === id)) {
+                    showToast('Không tìm thấy món ăn.', true);
+                    return;
+                }
+                state.cart[id] = (state.cart[id] || 0) + 1;
+                renderCart();
+                saveState();
+                showToast('Đã thêm món vào giỏ.');
+            };
+
+            window.changeQuantity = (id, amount) => {
+                if (!state.cart[id]) return;
+                state.cart[id] += amount;
+                if (state.cart[id] <= 0) delete state.cart[id];
+                renderCart();
+                saveState();
+            };
+
+            window.openCart = () => {
+                document.getElementById('modal-cart').classList.remove('hidden');
+                renderCart();
+            };
+
+            window.closeCart = () => document.getElementById('modal-cart').classList.add('hidden');
+
+            window.resetCart = () => {
+                state.cart = {};
+                renderCart();
+                saveState();
+                showToast('Đã xóa các món đang chọn.');
+            };
+
+            document.getElementById('menu-manager-form').addEventListener('submit', async event => {
+                event.preventDefault();
+                const form = event.currentTarget;
+                const name = document.getElementById('new-menu-name').value.trim();
+                const price = Number(document.getElementById('new-menu-price').value);
+                const category = document.getElementById('new-menu-category').value;
+                const description = document.getElementById('new-menu-description').value.trim();
+                const imageFile = document.getElementById('new-menu-image-file').files[0];
+                const imageUrl = document.getElementById('new-menu-image-url').value.trim();
+
+                if (!name || !Number.isFinite(price) || price <= 0) {
+                    showToast('Vui lòng nhập tên món và giá hợp lệ.', true);
+                    return;
+                }
+
+                try {
+                    let image = '';
+                    if (imageFile) {
+                        image = await compressImage(imageFile);
+                    } else if (imageUrl) {
+                        image = imageSource(imageUrl);
+                        if (!image) throw new Error('Đường dẫn ảnh phải bắt đầu bằng http:// hoặc https://.');
+                    }
+
+                    const item = {
+                        id: `custom-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+                        name,
+                        category,
+                        description,
+                        price,
+                        image,
+                        icon: category === 'drinks' ? 'fa-mug-hot' : category === 'vege' ? 'fa-leaf' : 'fa-utensils'
+                    };
+                    menu.push(item);
+                    state.customMenuItems.push(item);
+                    if (!saveState()) {
+                        menu.pop();
+                        state.customMenuItems.pop();
+                        return;
+                    }
+
+                    renderMenu();
+                    renderCart();
+                    form.reset();
+                    toggleMenuManager(false);
+                    showToast(`Đã thêm “${name}” vào thực đơn.`);
+                } catch (error) {
+                    console.error('Không thể thêm món vào thực đơn:', error);
+                    showToast(error.message || 'Không thể thêm món này.', true);
+                }
+            });
+
+            window.sendOrderToKitchen = () => {
+                const items = menu.filter(item => state.cart[item.id]).map(item => ({
+                    name: item.name,
+                    quantity: state.cart[item.id],
+                    price: item.price
+                }));
+                if (!items.length) {
+                    showToast('Hãy chọn món trước khi gửi bếp.', true);
+                    return;
+                }
+                const order = {
+                    id: `ORD-${Date.now()}-${nextId++}`,
+                    table: state.table,
+                    items,
+                    total: cartTotal(),
+                    status: 'pending',
+                    createdAt: Date.now()
+                };
+                state.orders.push(order);
+                state.cart = {};
+                renderCart();
+                renderKds();
+                saveState();
+                playChime();
+                closeCart();
+                document.getElementById('success-message').textContent = `Bếp đã nhận đơn ${order.id} của ${order.table}. Tổng cộng: ${money(order.total)} đ.`;
+                document.getElementById('modal-success').classList.remove('hidden');
+            };
+
+            window.closeSuccess = () => document.getElementById('modal-success').classList.add('hidden');
+
+            window.openPayment = id => {
+                const order = state.orders.find(item => item.id === id);
+                if (!order) {
+                    showToast('Không tìm thấy đơn cần thanh toán.', true);
+                    return;
+                }
+                if (order.paymentStatus === 'paid' || state.paymentHistory.some(payment => payment.orderId === id)) {
+                    showToast('Đơn này đã được ghi nhận thanh toán.', true);
+                    return;
+                }
+
+                paymentOrderId = id;
+                document.getElementById('payment-order-label').textContent = `${order.id} · ${order.table}`;
+                document.getElementById('payment-order-total').textContent = `${money(orderTotal(order))} đ`;
+                document.getElementById('payment-method').value = 'cash';
+                document.getElementById('modal-payment').classList.remove('hidden');
+                renderPaymentTransferDetails();
+            };
+
+            window.closePayment = () => {
+                paymentOrderId = null;
+                document.getElementById('modal-payment').classList.add('hidden');
+            };
+
+            window.openAccountSettings = () => {
+                const account = state.recipientAccount;
+                document.getElementById('account-bank-name').value = account?.bankName || '';
+                document.getElementById('account-bank-bin').value = account?.bankBin || '';
+                document.getElementById('account-number').value = account?.accountNumber || '';
+                document.getElementById('account-holder').value = account?.accountHolder || '';
+                document.getElementById('modal-account-settings').classList.remove('hidden');
+                document.getElementById('account-bank-name').focus();
+            };
+
+            window.closeAccountSettings = () => document.getElementById('modal-account-settings').classList.add('hidden');
+
+            window.filterKds = filter => {
+                if (!['all', 'pending', 'cooking'].includes(filter)) return;
+                kdsFilter = filter;
+                renderKds();
+            };
+
+            window.advanceOrder = id => {
+                const order = state.orders.find(item => item.id === id);
+                if (!order) {
+                    showToast('Không tìm thấy đơn cần cập nhật.', true);
+                    return;
+                }
+                order.status = order.status === 'pending' ? 'cooking' : 'done';
+                renderKds();
+                saveState();
+            };
+
+            window.completeService = id => {
+                const service = state.services.find(item => item.id === id);
+                if (!service) {
+                    showToast('Không tìm thấy yêu cầu dịch vụ.', true);
+                    return;
+                }
+                service.done = true;
+                renderKds();
+                saveState();
+            };
+
+            window.clearDoneOrders = () => {
+                const doneCount = state.orders.filter(order => order.status === 'done').length;
+                if (!doneCount) {
+                    showToast('Chưa có đơn hoàn tất để dọn.');
+                    return;
+                }
+                state.orders = state.orders.filter(order => order.status !== 'done');
+                renderKds();
+                saveState();
+                showToast(`Đã dọn ${doneCount} đơn hoàn tất.`);
+            };
+
+            document.getElementById('payment-method').addEventListener('change', renderPaymentTransferDetails);
+            document.getElementById('account-settings-form').addEventListener('submit', event => {
+                event.preventDefault();
+                const account = {
+                    bankName: document.getElementById('account-bank-name').value.trim(),
+                    bankBin: document.getElementById('account-bank-bin').value.trim(),
+                    accountNumber: document.getElementById('account-number').value.trim(),
+                    accountHolder: document.getElementById('account-holder').value.trim().toUpperCase()
+                };
+                if (!account.bankName || !/^\d{6}$/.test(account.bankBin) ||
+                    !/^[A-Za-z0-9]{5,25}$/.test(account.accountNumber) || !account.accountHolder) {
+                    showToast('Hãy kiểm tra tên ngân hàng, mã BIN và số tài khoản.', true);
+                    return;
+                }
+
+                const previousAccount = state.recipientAccount;
+                state.recipientAccount = account;
+                if (!saveState()) {
+                    state.recipientAccount = previousAccount;
+                    return;
+                }
+                closeAccountSettings();
+                renderPaymentTransferDetails();
+                showToast('Đã lưu tài khoản nhận tiền trên trình duyệt này.');
+            });
+
+            document.getElementById('payment-form').addEventListener('submit', event => {
+                event.preventDefault();
+                const order = state.orders.find(item => item.id === paymentOrderId);
+                const method = document.getElementById('payment-method').value;
+                if (!order || !Object.hasOwn(paymentMethodLabels, method)) {
+                    showToast('Không thể xác nhận thanh toán cho đơn này.', true);
+                    return;
+                }
+                if (method === 'transfer' && (!state.recipientAccount || !transferQrReady)) {
+                    showToast('Hãy cấu hình tài khoản và tạo được mã QR trước.', true);
+                    return;
+                }
+                if (order.paymentStatus === 'paid' || state.paymentHistory.some(payment => payment.orderId === order.id)) {
+                    closePayment();
+                    showToast('Đơn này đã được ghi nhận thanh toán.', true);
+                    return;
+                }
+
+                const paidAt = Date.now();
+                const payment = {
+                    id: `PAY-${paidAt}-${nextId++}`,
+                    orderId: order.id,
+                    table: order.table,
+                    amount: orderTotal(order),
+                    method,
+                    paidAt
+                };
+                const previousPaymentStatus = order.paymentStatus;
+                const previousPaymentMethod = order.paymentMethod;
+                const previousPaidAt = order.paidAt;
+                order.paymentStatus = 'paid';
+                order.paymentMethod = method;
+                order.paidAt = paidAt;
+                state.paymentHistory.push(payment);
+
+                if (!saveState()) {
+                    state.paymentHistory.pop();
+                    delete order.paymentStatus;
+                    delete order.paymentMethod;
+                    delete order.paidAt;
+                    if (previousPaymentStatus !== undefined) order.paymentStatus = previousPaymentStatus;
+                    if (previousPaymentMethod !== undefined) order.paymentMethod = previousPaymentMethod;
+                    if (previousPaidAt !== undefined) order.paidAt = previousPaidAt;
+                    return;
+                }
+
+                renderKds();
+                closePayment();
+                showToast(`Đã ghi nhận ${money(payment.amount)} đ cho đơn ${order.id}.`);
+            });
+
+            document.getElementById('modal-cart').addEventListener('click', event => {
+                if (event.target.id === 'modal-cart') closeCart();
+            });
+            document.getElementById('modal-payment').addEventListener('click', event => {
+                if (event.target.id === 'modal-payment') closePayment();
+            });
+            document.getElementById('modal-account-settings').addEventListener('click', event => {
+                if (event.target.id === 'modal-account-settings') closeAccountSettings();
+            });
+            document.getElementById('modal-success').addEventListener('click', event => {
+                if (event.target.id === 'modal-success') closeSuccess();
+            });
+            document.addEventListener('keydown', event => {
+                if (event.key === 'Escape') {
+                    closeCart();
+                    closePayment();
+                    closeAccountSettings();
+                    closeSuccess();
+                }
+            });
+            document.getElementById('payment-method').value = 'cash';
+
+            document.querySelector('select[onchange="changeTable(this.value)"]').value = state.table;
+            document.getElementById('label-table-name').textContent = state.table.toUpperCase();
+            document.getElementById('label-modal-table').textContent = `Bàn: ${state.table}`;
+            document.getElementById('audio-text').textContent = state.audio ? 'Chuông: Bật' : 'Chuông: Tắt';
+            document.getElementById('audio-icon').className = `fa-solid ${state.audio ? 'fa-bell text-amber-400' : 'fa-bell-slash text-gray-500'}`;
+            renderMenu();
+            renderCart();
+            renderKds();
+        })();
+    </script>
+</body>
+</html>
