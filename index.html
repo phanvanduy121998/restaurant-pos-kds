@@ -6,6 +6,8 @@
     <title>Bếp Số & Thực Đơn Lẩu Việt Nam | Zero-Hardware KDS</title>
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- SheetJS: tạo và xuất báo cáo Excel trên trình duyệt -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com">
@@ -334,6 +336,23 @@
                 <div class="text-right">
                     <div class="text-[11px] text-gray-400">Tổng đã thu</div>
                     <div id="payment-history-total" class="font-black text-emerald-300">0 đ</div>
+                </div>
+            </div>
+            <div class="flex flex-wrap items-center justify-between gap-2 border-b border-gray-800 bg-gray-900/80 p-3 shadow-inner">
+                <div class="flex items-center gap-2">
+                    <label for="filter-date" class="text-xs font-medium text-gray-400">Lọc ngày:</label>
+                    <input type="date" id="filter-date" onchange="renderPaymentHistory()"
+                           class="rounded-lg border border-gray-700 bg-gray-950 px-2.5 py-1 text-xs text-amber-400 focus:border-amber-500 focus:outline-none">
+                </div>
+                <div class="flex items-center gap-2">
+                    <button type="button" onclick="exportToExcel()"
+                            class="flex cursor-pointer items-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white shadow transition hover:bg-emerald-500">
+                        <i class="fa-solid fa-file-excel"></i> Xuất Excel
+                    </button>
+                    <button type="button" onclick="clearPaymentHistory()"
+                            class="cursor-pointer rounded-lg border border-red-800 bg-red-950/60 px-3 py-1.5 text-xs text-red-300 transition hover:bg-red-900/80">
+                        <i class="fa-solid fa-trash-can"></i> Xóa lịch sử ngày này
+                    </button>
                 </div>
             </div>
             <div class="overflow-x-auto">
@@ -863,7 +882,7 @@
             }
 
             function renderPaymentHistory() {
-                const payments = [...state.paymentHistory].sort((a, b) => b.paidAt - a.paidAt);
+                const payments = getFilteredPayments();
                 const total = payments.reduce((sum, payment) => sum + Number(payment.amount || 0), 0);
                 const rows = document.getElementById('payment-history-rows');
                 const empty = document.getElementById('payment-history-empty');
@@ -878,6 +897,89 @@
                         <td class="whitespace-nowrap p-3 text-right font-bold text-emerald-300">${money(payment.amount)} đ</td>
                     </tr>`).join('');
             }
+
+            function getVietnamDateKey(timestamp) {
+                const parts = new Intl.DateTimeFormat('en-US', {
+                    timeZone: 'Asia/Ho_Chi_Minh',
+                    year: 'numeric',
+                    month: '2-digit',
+                    day: '2-digit'
+                }).formatToParts(new Date(timestamp));
+                const values = Object.fromEntries(parts.map(part => [part.type, part.value]));
+                return `${values.year}-${values.month}-${values.day}`;
+            }
+
+            function getFilteredPayments() {
+                const selectedDate = document.getElementById('filter-date')?.value || '';
+
+                return [...state.paymentHistory]
+                    .filter(payment => !selectedDate || getVietnamDateKey(payment.paidAt) === selectedDate)
+                    .sort((a, b) => b.paidAt - a.paidAt);
+            }
+
+            const filterDateInput = document.getElementById('filter-date');
+            if (filterDateInput && !filterDateInput.value) {
+                filterDateInput.value = getVietnamDateKey(Date.now());
+            }
+
+            window.exportToExcel = () => {
+                if (typeof XLSX === 'undefined') {
+                    showToast('Chưa tải được thư viện Excel. Vui lòng kiểm tra kết nối mạng.', true);
+                    return;
+                }
+
+                const payments = getFilteredPayments();
+                if (payments.length === 0) {
+                    showToast('Không có giao dịch phù hợp để xuất báo cáo.', true);
+                    return;
+                }
+
+                const worksheet = XLSX.utils.json_to_sheet(payments.map((payment, index) => ({
+                    'STT': index + 1,
+                    'Thời gian thanh toán': new Date(payment.paidAt).toLocaleString('vi-VN'),
+                    'Mã giao dịch': payment.id,
+                    'Mã đơn': payment.orderId,
+                    'Bàn phục vụ': payment.table,
+                    'Hình thức thanh toán': paymentMethodLabels[payment.method] || payment.method,
+                    'Doanh thu (VNĐ)': Number(payment.amount || 0)
+                })));
+                worksheet['!cols'] = [
+                    { wch: 8 }, { wch: 23 }, { wch: 24 }, { wch: 15 },
+                    { wch: 14 }, { wch: 22 }, { wch: 20 }
+                ];
+
+                const workbook = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(workbook, worksheet, 'Doanh thu');
+                const selectedDate = document.getElementById('filter-date')?.value || 'TatCa';
+                XLSX.writeFile(workbook, `Bao_Cao_Doanh_Thu_${selectedDate}.xlsx`);
+                showToast(`Đã xuất ${payments.length} giao dịch ra file Excel.`);
+            };
+
+            window.clearPaymentHistory = () => {
+                const selectedDate = document.getElementById('filter-date')?.value;
+                if (!selectedDate) {
+                    showToast('Hãy chọn ngày trước khi xóa lịch sử thanh toán.', true);
+                    return;
+                }
+
+                const payments = getFilteredPayments();
+                if (payments.length === 0) {
+                    showToast('Không có lịch sử thanh toán trong ngày đã chọn.', true);
+                    return;
+                }
+
+                if (!window.confirm(`Bạn có chắc muốn xóa ${payments.length} giao dịch ngày ${selectedDate}?`)) return;
+
+                const previousHistory = state.paymentHistory;
+                state.paymentHistory = state.paymentHistory.filter(payment => getVietnamDateKey(payment.paidAt) !== selectedDate);
+                if (!saveState()) {
+                    state.paymentHistory = previousHistory;
+                    return;
+                }
+
+                renderKds();
+                showToast(`Đã xóa ${payments.length} giao dịch ngày ${selectedDate}.`);
+            };
 
             window.toggleMenuManager = show => {
                 const form = document.getElementById('menu-manager-form');
