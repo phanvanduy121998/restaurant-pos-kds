@@ -93,6 +93,13 @@
         body .via-\[\#1a212f\], body .via-\[\#1d2430\] { --tw-gradient-stops: var(--tw-gradient-from), #ffffff var(--tw-gradient-via-position), var(--tw-gradient-to) !important; }
         body .to-\[\#171a24\], body .to-\[\#121620\] { --tw-gradient-to: #f8fafc var(--tw-gradient-to-position) !important; }
         body .shadow-lg, body .shadow-xl { box-shadow: 0 10px 30px -12px rgba(15,23,42,.18) !important; }
+
+        /* ===== Phân quyền giao diện (server vẫn kiểm tra quyền thật) ===== */
+        body:not(.role-admin) .admin-only { display: none !important; }
+        body:not(.role-admin):not(.role-kitchen) .staff-only { display: none !important; }
+        body:not(.role-guest) .guest-only { display: none !important; }
+        body.role-kitchen #tab-guest { display: none !important; }
+        body:not(.role-guest) #bar-bottom-cart, body:not(.role-guest) [onclick^="addToCart"] { display: none !important; }
     </style>
 </head>
 <body class="bg-[#0f141d] text-gray-100 font-sans min-h-screen selection:bg-amber-500 selection:text-black antialiased">
@@ -125,7 +132,7 @@
             </button>
 
             <!-- Chuyển chế độ Khách <-> Bếp -->
-            <div class="bg-black/60 p-1 rounded-xl border border-gray-700 flex items-center">
+            <div id="tab-bar" class="staff-only bg-black/60 p-1 rounded-xl border border-gray-700 flex items-center">
                 <button onclick="switchView('guest')" id="tab-guest" class="px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 bg-amber-500 text-black shadow">
                     <i class="fa-solid fa-utensils"></i>
                     <span>Bàn Khách</span>
@@ -136,6 +143,8 @@
                     <span id="badge-kds-count" class="ml-1 px-1.5 py-0.2 rounded-full bg-amber-500 text-black text-[10px] font-black">0</span>
                 </button>
             </div>
+            <button type="button" onclick="openPasswordModal()" class="staff-only rounded-xl border border-gray-700 bg-gray-800 px-2.5 py-2 text-xs font-bold text-gray-300 hover:bg-gray-700" title="Đổi mật khẩu"><i class="fa-solid fa-key"></i></button>
+            <button type="button" onclick="logout()" class="staff-only rounded-xl border border-red-500/40 px-2.5 py-2 text-xs font-bold text-red-300 hover:bg-red-500/10"><i class="fa-solid fa-right-from-bracket mr-1"></i><span>Đăng xuất</span></button>
         </div>
     </header>
 
@@ -163,15 +172,13 @@
                 </p>
             </div>
 
-            <!-- Bộ Chọn Bàn Thử Nghiệm -->
-            <div class="flex items-center gap-2">
-                <span class="text-xs text-gray-400">Chọn bàn:</span>
-                <select id="table-selector" onchange="changeTable(this.value)" class="bg-[#121620] border border-gray-700 text-amber-300 text-xs rounded-xl px-3 py-2 font-bold focus:outline-none focus:border-amber-500">
-                </select>
+            <!-- Bàn của khách được cố định theo mã QR -->
+            <div class="hidden">
+                <select id="table-selector" class="hidden"></select>
             </div>
         </div>
 
-        <section class="rounded-2xl border border-amber-500/25 bg-[#161b26] p-4 shadow">
+        <section class="admin-only rounded-2xl border border-amber-500/25 bg-[#161b26] p-4 shadow">
             <div class="flex flex-wrap items-center justify-between gap-3">
                 <div>
                     <h2 class="font-black text-amber-400"><i class="fa-solid fa-pen-to-square mr-2"></i>Quản lý thực đơn</h2>
@@ -231,10 +238,19 @@
                     <button type="button" onclick="saveTableNames()" class="rounded-xl bg-amber-500 px-4 py-2 text-xs font-black text-black transition hover:bg-amber-400"><i class="fa-solid fa-floppy-disk mr-1"></i>Lưu danh sách bàn</button>
                 </div>
             </details>
+            <details class="mt-4 border-t border-gray-800 pt-3" open>
+                <summary class="cursor-pointer text-sm font-bold text-gray-200">QR từng bàn (khách quét để gọi món)</summary>
+                <p class="mt-2 text-xs text-gray-500">Mỗi bàn có một mã riêng. Khách quét chỉ xem được thực đơn và gửi đơn đúng bàn đó. Nếu mã bị lộ, bấm “Đổi mã” rồi in lại QR.</p>
+                <label class="mt-3 block text-xs font-bold text-gray-300">
+                    Địa chỉ web khách truy cập (cùng Wi-Fi hoặc tên miền của quán)
+                    <input id="public-url-input" onchange="renderTableLinks()" class="mt-1 w-full rounded-xl border border-gray-700 bg-[#10141d] px-3 py-2 text-sm text-white outline-none focus:border-amber-500" placeholder="http://192.168.1.10:3000">
+                </label>
+                <div id="table-links" class="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3"></div>
+            </details>
         </section>
 
         <!-- Các Nút Dịch Vụ 1-Chạm -->
-        <div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+        <div class="guest-only grid grid-cols-2 sm:grid-cols-4 gap-2.5">
             <button onclick="requestService('Xin thêm nước lẩu')" class="bg-[#161b26] hover:bg-[#1e2535] border border-gray-800 hover:border-amber-500/50 rounded-2xl p-3 text-left transition flex items-center justify-between group active:scale-95 shadow">
                 <div>
                     <div class="text-xs sm:text-sm font-bold text-amber-400">Thêm nước lẩu</div>
@@ -358,7 +374,7 @@
                 <button onclick="filterKds('cooking')" class="kds-pill px-3 py-1.5 rounded-xl text-xs font-bold bg-[#1e2533] text-blue-300 border border-blue-500/30 hover:bg-gray-700 transition">
                     Đang Nấu (<span id="count-cooking">0</span>)
                 </button>
-                <button type="button" onclick="openAccountSettings()" class="px-3 py-1.5 rounded-xl border border-emerald-500/30 bg-emerald-500/10 text-xs font-bold text-emerald-300 transition hover:bg-emerald-500 hover:text-black">
+                <button type="button" onclick="openAccountSettings()" class="admin-only px-3 py-1.5 rounded-xl border border-emerald-500/30 bg-emerald-500/10 text-xs font-bold text-emerald-300 transition hover:bg-emerald-500 hover:text-black">
                     <i class="fa-solid fa-building-columns mr-1"></i> Cấu hình QR nhận tiền
                 </button>
                 <button onclick="clearDoneOrders()" class="px-3 py-1.5 rounded-xl text-xs font-bold bg-gray-800 hover:bg-red-900/50 text-gray-300 hover:text-red-200 border border-gray-700 ml-auto transition">
@@ -377,7 +393,7 @@
             <!-- Thẻ đơn sinh ra bằng JS -->
         </div>
 
-        <section class="overflow-hidden rounded-2xl border border-kds-cardBorder bg-kds-card shadow-xl">
+        <section class="admin-only overflow-hidden rounded-2xl border border-kds-cardBorder bg-kds-card shadow-xl">
             <div class="flex flex-wrap items-center justify-between gap-3 border-b border-gray-700 p-4">
                 <div>
                     <h2 class="font-extrabold text-white"><i class="fa-solid fa-receipt mr-2 text-emerald-400"></i>Lịch sử thanh toán</h2>
@@ -559,121 +575,380 @@
         </div>
     </div>
 
+    <div id="modal-password" class="hidden fixed inset-0 z-[90] flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm" role="dialog" aria-modal="true">
+        <form id="password-form" class="w-full max-w-sm rounded-3xl border border-amber-500/40 bg-[#161c28] p-5 shadow-2xl">
+            <h2 class="text-lg font-black text-amber-400">Đổi mật khẩu</h2>
+            <label class="mt-4 block text-xs font-bold text-gray-300">Mật khẩu hiện tại
+                <input id="password-current" type="password" required autocomplete="current-password" class="mt-1 w-full rounded-xl border border-gray-700 bg-[#10141d] px-3 py-2.5 text-sm text-white outline-none focus:border-amber-500">
+            </label>
+            <label class="mt-3 block text-xs font-bold text-gray-300">Mật khẩu mới (từ 8 ký tự)
+                <input id="password-next" type="password" required minlength="8" autocomplete="new-password" class="mt-1 w-full rounded-xl border border-gray-700 bg-[#10141d] px-3 py-2.5 text-sm text-white outline-none focus:border-amber-500">
+            </label>
+            <div class="mt-5 flex gap-2">
+                <button type="button" onclick="closePasswordModal()" class="flex-1 rounded-xl border border-gray-700 px-4 py-2.5 text-sm font-bold text-gray-300 hover:bg-gray-800">Hủy</button>
+                <button type="submit" class="flex-1 rounded-xl bg-amber-500 px-4 py-2.5 text-sm font-black text-black hover:bg-amber-400">Lưu</button>
+            </div>
+        </form>
+    </div>
+
+    <!-- MÀN HÌNH ĐĂNG NHẬP NHÂN VIÊN / THÔNG BÁO KHÔNG HỢP LỆ -->
+    <div id="auth-screen" class="fixed inset-0 z-[100] flex items-center justify-center bg-[#0f141d] p-4">
+        <form id="login-form" class="hidden w-full max-w-sm rounded-3xl border border-amber-500/40 bg-[#161c28] p-6 shadow-2xl">
+            <div class="mb-4 text-center">
+                <div class="mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-500 text-xl text-black"><i class="fa-solid fa-lock"></i></div>
+                <h1 class="text-lg font-black text-amber-400">Đăng nhập nhân viên</h1>
+                <p class="mt-1 text-xs text-gray-400">Dành cho quản lý và bếp</p>
+            </div>
+            <label class="block text-xs font-bold text-gray-300">Tài khoản
+                <input id="login-username" required autocomplete="username" autocapitalize="none" class="mt-1 w-full rounded-xl border border-gray-700 bg-[#10141d] px-3 py-2.5 text-sm text-white outline-none focus:border-amber-500">
+            </label>
+            <label class="mt-3 block text-xs font-bold text-gray-300">Mật khẩu
+                <input id="login-password" type="password" required autocomplete="current-password" class="mt-1 w-full rounded-xl border border-gray-700 bg-[#10141d] px-3 py-2.5 text-sm text-white outline-none focus:border-amber-500">
+            </label>
+            <p id="login-error" class="mt-3 hidden text-xs font-bold text-red-300"></p>
+            <button type="submit" class="mt-5 w-full rounded-xl bg-amber-500 px-4 py-2.5 text-sm font-black text-black hover:bg-amber-400">Đăng nhập</button>
+        </form>
+        <div id="auth-message" class="hidden max-w-sm rounded-3xl border border-red-500/40 bg-[#161c28] p-6 text-center shadow-2xl">
+            <div class="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-red-500/15 text-xl text-red-300"><i class="fa-solid fa-qrcode"></i></div>
+            <p id="auth-message-text" class="text-sm font-bold text-gray-200"></p>
+        </div>
+    </div>
+
     <div id="toast" class="hidden fixed right-4 bottom-24 z-[70] max-w-sm rounded-xl border border-emerald-500/40 bg-[#121620] px-4 py-3 text-sm font-bold text-emerald-300 shadow-xl" role="status" aria-live="polite"></div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <script>
         (() => {
-            const STORAGE_KEY = 'lau-viet-kds-demo-v1';
-            const defaultMenu = [
-                { id: 'mala', name: 'Lẩu Tứ Xuyên', category: 'hotpot', description: 'Nước lẩu cay nồng, thơm vị hoa tiêu.', price: 189000, icon: 'fa-fire-burner' },
-                { id: 'mushroom-broth', name: 'Lẩu Nấm Thanh Ngọt', category: 'hotpot', description: 'Nước dùng ninh rau củ và nấm tự nhiên.', price: 159000, icon: 'fa-bowl-food' },
-                { id: 'beef-australia', name: 'Ba Chỉ Bò Úc', category: 'meat', description: 'Thịt bò thái lát mỏng, mềm ngọt.', price: 219000, icon: 'fa-drumstick-bite' },
-                { id: 'beef-brisket', name: 'Gầu Bò Mỹ', category: 'meat', description: 'Gầu bò vân mỡ, thích hợp nhúng lẩu.', price: 239000, icon: 'fa-bone' },
-                { id: 'shrimp', name: 'Tôm Sú Tươi', category: 'meat', description: 'Tôm sú tươi, sơ chế sạch.', price: 189000, icon: 'fa-shrimp' },
-                { id: 'fish-ball', name: 'Viên Cá Thác Lác', category: 'meat', description: 'Viên cá dai ngon, làm trong ngày.', price: 99000, icon: 'fa-fish' },
-                { id: 'mushroom-set', name: 'Đĩa Nấm Tổng Hợp', category: 'vege', description: 'Nấm kim châm, nấm đùi gà và nấm hương.', price: 89000, icon: 'fa-leaf' },
-                { id: 'greens', name: 'Rau Theo Mùa', category: 'vege', description: 'Rau xanh tươi theo ngày.', price: 69000, icon: 'fa-seedling' },
-                { id: 'tofu', name: 'Đậu Hũ Non', category: 'vege', description: 'Đậu hũ mềm, dùng kèm nước lẩu.', price: 49000, icon: 'fa-cube' },
-                { id: 'beer', name: 'Bia Lạnh', category: 'drinks', description: 'Bia ướp lạnh, phục vụ theo lon.', price: 35000, icon: 'fa-beer-mug-empty' },
-                { id: 'tea', name: 'Trà Đào', category: 'drinks', description: 'Trà đào mát lạnh, ít ngọt.', price: 45000, icon: 'fa-mug-hot' },
-                { id: 'water', name: 'Nước Suối', category: 'drinks', description: 'Nước suối đóng chai.', price: 20000, icon: 'fa-bottle-water' }
-            ];
-            const initialState = {
-                table: 'Bàn 06 - Sân Vườn',
-                tables: ['Bàn 06 - Sân Vườn', 'Bàn 02 - Tầng 1', 'Bàn 08 - Tầng 2', 'Phòng VIP 1 - Máy Lạnh'],
+            const STORAGE_KEY = 'lau-viet-local-v2';
+            const categoryIcons = { hotpot: 'fa-fire-burner', meat: 'fa-drumstick-bite', vege: 'fa-leaf', drinks: 'fa-mug-hot' };
+            let state = {
+                role: null,
+                username: '',
+                table: '',
+                tables: [],
                 cart: {},
                 orders: [],
                 services: [],
-                customMenuItems: [],
                 hiddenMenuItemIds: [],
                 paymentHistory: [],
                 recipientAccount: null,
+                tableLinks: [],
+                publicUrl: '',
                 audio: true
             };
-            let state = { ...initialState };
+            let menu = [];
+            let serverVersion = 0;
+            let tableToken = '';
+            let pollTimer = null;
+            let polling = false;
+            let idleTimer = null;
             let menuFilter = 'all';
             let kdsFilter = 'all';
             let toastTimer;
-            let nextId = 1;
             let paymentOrderId = null;
             let transferQrReady = false;
+            let knownAlertIds = null;
             const paymentMethodLabels = { cash: 'Tiền mặt', transfer: 'Chuyển khoản', card: 'Thẻ ngân hàng' };
 
             try {
-                const stored = localStorage.getItem(STORAGE_KEY);
-                if (stored) {
-                    const parsed = JSON.parse(stored);
-                    if (parsed && typeof parsed === 'object') {
-                        state = { ...initialState, ...parsed };
-                        if (!state.cart || typeof state.cart !== 'object') state.cart = {};
-                        if (!Array.isArray(state.orders)) state.orders = [];
-                        if (!Array.isArray(state.services)) state.services = [];
-                        if (!Array.isArray(state.customMenuItems)) state.customMenuItems = [];
-                        if (!Array.isArray(state.tables)) state.tables = [...initialState.tables];
-                        if (!Array.isArray(state.hiddenMenuItemIds)) state.hiddenMenuItemIds = [];
-                        if (!Array.isArray(state.paymentHistory)) state.paymentHistory = [];
-                        if (!state.recipientAccount || typeof state.recipientAccount !== 'object') state.recipientAccount = null;
-                    }
+                const stored = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+                if (stored && typeof stored === 'object') {
+                    if (stored.cart && typeof stored.cart === 'object') state.cart = stored.cart;
+                    if (typeof stored.audio === 'boolean') state.audio = stored.audio;
                 }
             } catch (error) {
-                console.error('Không thể đọc dữ liệu demo đã lưu:', error);
+                console.error('Không thể đọc dữ liệu đã lưu:', error);
             }
-            state.tables = [...new Set(state.tables
-                .filter(table => typeof table === 'string')
-                .map(table => table.trim())
-                .filter(Boolean))].slice(0, 100);
-            if (!state.tables.length) state.tables = [...initialState.tables];
-            state.hiddenMenuItemIds = [...new Set(state.hiddenMenuItemIds.filter(id => typeof id === 'string'))];
-            if (!state.tables.includes(state.table)) state.table = state.tables[0];
-            if (state.recipientAccount) {
-                const account = state.recipientAccount;
-                state.recipientAccount = typeof account.bankName === 'string' &&
-                    /^\d{6}$/.test(account.bankBin) &&
-                    /^[A-Za-z0-9]{5,25}$/.test(account.accountNumber) &&
-                    typeof account.accountHolder === 'string'
-                    ? {
-                        bankName: account.bankName.trim(),
-                        bankBin: account.bankBin,
-                        accountNumber: account.accountNumber,
-                        accountHolder: account.accountHolder.trim()
-                    }
-                    : null;
+            try {
+                tableToken = new URLSearchParams(location.search).get('t') || sessionStorage.getItem('table-token') || '';
+                if (!/^[a-f0-9]{48}$/.test(tableToken)) tableToken = '';
+                if (tableToken) sessionStorage.setItem('table-token', tableToken);
+                if (location.search.includes('t=')) history.replaceState(null, '', location.pathname);
+            } catch (error) {
+                tableToken = '';
             }
-            defaultMenu.forEach(item => { item.image = `images/${item.id}.jpg`; });
-            const validCategories = new Set(['hotpot', 'meat', 'vege', 'drinks']);
-            const categoryIcons = { hotpot: 'fa-fire-burner', meat: 'fa-drumstick-bite', vege: 'fa-leaf', drinks: 'fa-mug-hot' };
-            const customMenuItems = state.customMenuItems.filter(item =>
-                item &&
-                typeof item.id === 'string' &&
-                /^custom-[\w-]+$/.test(item.id) &&
-                typeof item.name === 'string' &&
-                validCategories.has(item.category) &&
-                Number.isFinite(Number(item.price)) &&
-                Number(item.price) > 0
-            ).map(item => ({
-                id: item.id,
-                name: item.name,
-                category: item.category,
-                description: typeof item.description === 'string' ? item.description : '',
-                price: Number(item.price),
-                image: imageSource(item.image),
-                icon: categoryIcons[item.category]
-            }));
-            state.customMenuItems = customMenuItems;
-            const menu = [...defaultMenu, ...customMenuItems];
 
             function saveState() {
                 try {
-                    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+                    localStorage.setItem(STORAGE_KEY, JSON.stringify({ cart: state.cart, audio: state.audio }));
                     return true;
                 } catch (error) {
-                    console.error('Không thể lưu dữ liệu demo:', error);
-                    showToast('Không lưu được dữ liệu trên trình duyệt.', true);
+                    console.error('Không thể lưu dữ liệu:', error);
                     return false;
                 }
             }
 
+            async function api(method, path, body) {
+                const headers = {};
+                if (body !== undefined) headers['Content-Type'] = 'application/json';
+                if (tableToken && state.role === 'guest') headers['X-Table-Token'] = tableToken;
+                const response = await fetch(path, {
+                    method,
+                    headers,
+                    credentials: 'same-origin',
+                    body: body === undefined ? undefined : JSON.stringify(body)
+                });
+                let data = {};
+                try { data = await response.json(); } catch { /* không có nội dung */ }
+                if (!response.ok) {
+                    if (response.status === 401 && state.role && state.role !== 'guest') showLogin();
+                    const error = new Error(data.error || `Lỗi máy chủ (${response.status}).`);
+                    error.status = response.status;
+                    throw error;
+                }
+                return data;
+            }
+
+            function reportError(error) {
+                showToast(error.message || 'Có lỗi xảy ra.', true);
+            }
+
+            function applyServerState(data) {
+                const hadAlerts = knownAlertIds;
+                state.role = data.role;
+                state.username = data.username || '';
+                state.table = data.table || '';
+                state.tables = data.tables || [];
+                state.orders = data.orders || [];
+                state.services = data.services || [];
+                state.hiddenMenuItemIds = data.hiddenMenuItemIds || [];
+                state.paymentHistory = data.paymentHistory || [];
+                state.recipientAccount = data.recipientAccount || null;
+                state.tableLinks = data.tableLinks || [];
+                state.publicUrl = data.publicUrl || '';
+                serverVersion = data.version;
+                menu = (data.menu || []).map(item => ({
+                    ...item,
+                    icon: item.icon || categoryIcons[item.category] || 'fa-utensils',
+                    image: imageSource(item.image)
+                }));
+                Object.keys(state.cart).forEach(id => {
+                    if (!menu.some(item => item.id === id) || state.hiddenMenuItemIds.includes(id)) delete state.cart[id];
+                });
+                document.body.classList.remove('role-guest', 'role-kitchen', 'role-admin');
+                document.body.classList.add(`role-${state.role}`);
+                const alerts = new Set([
+                    ...state.orders.filter(order => order.status === 'pending').map(order => order.id),
+                    ...state.services.filter(service => !service.done).map(service => service.id)
+                ]);
+                if (state.role !== 'guest' && hadAlerts && [...alerts].some(id => !hadAlerts.has(id))) playChime();
+                knownAlertIds = alerts;
+                renderAll();
+            }
+
+            function renderAll() {
+                renderTableSelector();
+                renderMenuManagerItems();
+                renderMenu();
+                renderCart();
+                if (state.role !== 'guest') renderKds();
+                renderTableLinks();
+            }
+
+            async function refreshState(force) {
+                if (polling) return;
+                polling = true;
+                try {
+                    const role = state.role || 'guest';
+                    const data = await api('GET', `/api/state?v=${force ? 0 : serverVersion}&r=${role}`);
+                    if (!data.unchanged) applyServerState(data);
+                } catch (error) {
+                    if (error.status === 403 && state.role === 'guest') showAuthMessage('Mã QR của bàn không còn hiệu lực. Vui lòng quét lại mã QR trên bàn hoặc gọi nhân viên.');
+                } finally {
+                    polling = false;
+                }
+            }
+
+            function startPolling() {
+                clearInterval(pollTimer);
+                pollTimer = setInterval(() => {
+                    if (!document.hidden && state.role) refreshState(false);
+                }, 3000);
+            }
+
+            function hideAuthScreen() {
+                document.getElementById('auth-screen').classList.add('hidden');
+            }
+
+            function showLogin() {
+                clearInterval(pollTimer);
+                state.role = null;
+                knownAlertIds = null;
+                document.body.classList.remove('role-guest', 'role-kitchen', 'role-admin');
+                document.getElementById('auth-message').classList.add('hidden');
+                document.getElementById('login-form').classList.remove('hidden');
+                document.getElementById('auth-screen').classList.remove('hidden');
+                document.getElementById('login-password').value = '';
+                document.getElementById('login-username').focus();
+            }
+
+            function showAuthMessage(text) {
+                clearInterval(pollTimer);
+                document.getElementById('login-form').classList.add('hidden');
+                document.getElementById('auth-message-text').textContent = text;
+                document.getElementById('auth-message').classList.remove('hidden');
+                document.getElementById('auth-screen').classList.remove('hidden');
+            }
+
+            function resetIdleTimer() {
+                clearTimeout(idleTimer);
+                if (state.role === 'kitchen' || state.role === 'admin') {
+                    idleTimer = setTimeout(() => window.logout(), 30 * 60 * 1000);
+                }
+            }
+            ['click', 'keydown', 'touchstart'].forEach(name => document.addEventListener(name, resetIdleTimer, { passive: true }));
+
+            async function boot() {
+                let me = { role: null };
+                try { me = await api('GET', '/api/me'); } catch { /* chưa đăng nhập */ }
+                if (me.role) {
+                    state.role = me.role;
+                    await refreshState(true);
+                    window.switchView(me.role === 'kitchen' ? 'kds' : 'guest');
+                    hideAuthScreen();
+                    resetIdleTimer();
+                    startPolling();
+                    return;
+                }
+                if (tableToken) {
+                    state.role = 'guest';
+                    await refreshState(true);
+                    if (state.role === 'guest' && state.table) {
+                        hideAuthScreen();
+                        window.switchView('guest');
+                        startPolling();
+                    } else {
+                        showAuthMessage('Mã QR của bàn không hợp lệ. Vui lòng quét lại mã QR trên bàn hoặc gọi nhân viên.');
+                    }
+                    return;
+                }
+                showLogin();
+            }
+
+            window.logout = async () => {
+                try { await api('POST', '/api/logout'); } catch { /* bỏ qua */ }
+                clearTimeout(idleTimer);
+                state.orders = [];
+                state.paymentHistory = [];
+                state.recipientAccount = null;
+                state.tableLinks = [];
+                serverVersion = 0;
+                showLogin();
+            };
+
+            window.openPasswordModal = () => {
+                document.getElementById('password-form').reset();
+                document.getElementById('modal-password').classList.remove('hidden');
+                document.getElementById('password-current').focus();
+            };
+            window.closePasswordModal = () => document.getElementById('modal-password').classList.add('hidden');
+
+            document.getElementById('password-form').addEventListener('submit', async event => {
+                event.preventDefault();
+                try {
+                    await api('POST', '/api/password', {
+                        current: document.getElementById('password-current').value,
+                        next: document.getElementById('password-next').value
+                    });
+                    closePasswordModal();
+                    showToast('Đã đổi mật khẩu.');
+                } catch (error) {
+                    reportError(error);
+                }
+            });
+
+            document.getElementById('login-form').addEventListener('submit', async event => {
+                event.preventDefault();
+                const errorBox = document.getElementById('login-error');
+                errorBox.classList.add('hidden');
+                try {
+                    const me = await api('POST', '/api/login', {
+                        username: document.getElementById('login-username').value,
+                        password: document.getElementById('login-password').value
+                    });
+                    state.role = me.role;
+                    await refreshState(true);
+                    window.switchView(me.role === 'kitchen' ? 'kds' : 'guest');
+                    hideAuthScreen();
+                    resetIdleTimer();
+                    startPolling();
+                } catch (error) {
+                    errorBox.textContent = error.message;
+                    errorBox.classList.remove('hidden');
+                }
+            });
+
+            function renderTableLinks() {
+                const container = document.getElementById('table-links');
+                if (!container || state.role !== 'admin') return;
+                const input = document.getElementById('public-url-input');
+                if (!input.value) input.value = localStorage.getItem('pos-public-url') || state.publicUrl || location.origin;
+                localStorage.setItem('pos-public-url', input.value);
+                const origin = input.value.trim().replace(/\/+$/, '');
+                container.innerHTML = state.tableLinks.map((table, index) => {
+                    const link = `${origin}/?t=${table.token}`;
+                    return `<div class="rounded-xl border border-gray-800 bg-[#10141d] p-3 text-center">
+                        <p class="truncate text-sm font-bold text-white">${escapeHtml(table.name)}</p>
+                        <div class="table-qr mx-auto mt-2 inline-block rounded-lg bg-white p-2" data-link="${escapeHtml(link)}"></div>
+                        <div class="mt-2 flex justify-center gap-1.5">
+                            <button type="button" onclick="copyTableLink(${index})" class="rounded-lg border border-gray-700 px-2 py-1 text-[11px] font-bold text-gray-300 hover:bg-gray-800">Sao chép link</button>
+                            <button type="button" onclick="printTableQr(${index})" class="rounded-lg border border-gray-700 px-2 py-1 text-[11px] font-bold text-gray-300 hover:bg-gray-800">In QR</button>
+                            <button type="button" onclick="regenerateTable(${index})" class="rounded-lg border border-red-500/40 px-2 py-1 text-[11px] font-bold text-red-300 hover:bg-red-500/10">Đổi mã</button>
+                        </div>
+                    </div>`;
+                }).join('');
+                if (typeof QRCode !== 'function') return;
+                container.querySelectorAll('.table-qr').forEach(box => {
+                    new QRCode(box, { text: box.dataset.link, width: 120, height: 120, correctLevel: QRCode.CorrectLevel.M });
+                });
+            }
+
+            function tableLinkFor(index) {
+                const origin = document.getElementById('public-url-input').value.trim().replace(/\/+$/, '');
+                return `${origin}/?t=${state.tableLinks[index].token}`;
+            }
+
+            window.renderTableLinks = renderTableLinks;
+            window.copyTableLink = async index => {
+                try {
+                    await navigator.clipboard.writeText(tableLinkFor(index));
+                    showToast('Đã sao chép link của bàn.');
+                } catch {
+                    window.prompt('Sao chép link này:', tableLinkFor(index));
+                }
+            };
+            window.printTableQr = index => {
+                const box = document.querySelectorAll('#table-links .table-qr')[index];
+                const canvas = box && box.querySelector('canvas');
+                if (!canvas) return;
+                const popup = window.open('', '_blank', 'width=420,height=560');
+                if (!popup) return;
+                const doc = popup.document;
+                doc.title = state.tableLinks[index].name;
+                const wrap = doc.createElement('div');
+                wrap.style.cssText = 'font-family:sans-serif;text-align:center;padding:24px';
+                const title = doc.createElement('h2');
+                title.textContent = state.tableLinks[index].name;
+                const img = doc.createElement('img');
+                img.src = canvas.toDataURL('image/png');
+                img.style.width = '300px';
+                const note = doc.createElement('p');
+                note.textContent = 'Quét mã để gọi món / 扫码点餐';
+                wrap.append(title, img, note);
+                doc.body.appendChild(wrap);
+                img.onload = () => popup.print();
+            };
+            window.regenerateTable = async index => {
+                const table = state.tableLinks[index];
+                if (!window.confirm(`Đổi mã QR của ${table.name}? Mã QR cũ sẽ không còn dùng được.`)) return;
+                try {
+                    await api('POST', '/api/tables/regenerate', { name: table.name });
+                    await refreshState(true);
+                    showToast('Đã đổi mã QR. Hãy in lại mã mới.');
+                } catch (error) {
+                    reportError(error);
+                }
+            };
             function escapeHtml(value) {
                 return String(value).replace(/[&<>"']/g, character => ({
                     '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
@@ -683,7 +958,7 @@
             function imageSource(value) {
                 if (typeof value !== 'string') return '';
                 if (/^data:image\/(?:jpeg|png|webp);base64,/i.test(value)) return value;
-                if (/^images\/[\w-]+\.jpg$/.test(value)) return value;
+                if (/^(?:images|uploads)\/[\w-]+\.jpg$/.test(value)) return value;
                 try {
                     const url = new URL(value);
                     return url.protocol === 'https:' || url.protocol === 'http:' ? url.href : '';
@@ -891,10 +1166,10 @@
                 selector.innerHTML = state.tables.map(table =>
                     `<option value="${escapeHtml(table)}">${escapeHtml(table)}</option>`
                 ).join('');
-                selector.value = state.table;
-                document.getElementById('table-names-input').value = state.tables.join('\n');
-                document.getElementById('label-table-name').textContent = state.table.toUpperCase();
-                document.getElementById('label-modal-table').textContent = `Bàn: ${state.table}`;
+                document.getElementById('label-table-name').textContent = (state.table || '').toUpperCase();
+                document.getElementById('label-modal-table').textContent = `Bàn: ${state.table || '—'}`;
+                const namesInput = document.getElementById('table-names-input');
+                if (document.activeElement !== namesInput && state.role === 'admin') namesInput.value = state.tables.join('\n');
             }
 
             function renderCart() {
@@ -956,7 +1231,7 @@
                         </button>`;
                     const paymentStatus = isPaid
                         ? `<p class="mt-3 text-center text-xs font-bold text-emerald-300"><i class="fa-solid fa-circle-check mr-1"></i>Đã thanh toán${paymentMethodLabels[order.paymentMethod || payment?.method] ? ` · ${paymentMethodLabels[order.paymentMethod || payment.method]}` : ''}</p>`
-                        : `<button type="button" onclick="openPayment('${order.id}')" class="mt-3 w-full rounded-xl border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm font-bold text-amber-300 transition hover:bg-amber-500 hover:text-black"><i class="fa-solid fa-money-bill-wave mr-1"></i>Ghi nhận thanh toán</button>`;
+                        : `<button type="button" onclick="openPayment('${order.id}')" class="admin-only mt-3 w-full rounded-xl border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm font-bold text-amber-300 transition hover:bg-amber-500 hover:text-black"><i class="fa-solid fa-money-bill-wave mr-1"></i>Ghi nhận thanh toán</button>`;
                     return `<article class="rounded-2xl border ${status.border} bg-kds-card p-4 shadow-lg">
                         <div class="flex items-start justify-between gap-3">
                             <div><p class="text-[11px] uppercase tracking-wide text-gray-500">${escapeHtml(order.table)}</p><h3 class="mt-1 font-mono font-bold text-amber-300">${escapeHtml(order.id)}</h3></div>
@@ -1052,7 +1327,7 @@
                 showToast(`Đã xuất ${payments.length} giao dịch ra file Excel.`);
             };
 
-            window.clearPaymentHistory = () => {
+            window.clearPaymentHistory = async () => {
                 const selectedDate = document.getElementById('filter-date')?.value;
                 if (!selectedDate) {
                     showToast('Hãy chọn ngày trước khi xóa lịch sử thanh toán.', true);
@@ -1067,15 +1342,13 @@
 
                 if (!window.confirm(`Bạn có chắc muốn xóa ${payments.length} giao dịch ngày ${selectedDate}?`)) return;
 
-                const previousHistory = state.paymentHistory;
-                state.paymentHistory = state.paymentHistory.filter(payment => getVietnamDateKey(payment.paidAt) !== selectedDate);
-                if (!saveState()) {
-                    state.paymentHistory = previousHistory;
-                    return;
+                try {
+                    await api('POST', '/api/payments/clear', { date: selectedDate });
+                    await refreshState(true);
+                    showToast(`Đã xóa ${payments.length} giao dịch ngày ${selectedDate}.`);
+                } catch (error) {
+                    reportError(error);
                 }
-
-                renderKds();
-                showToast(`Đã xóa ${payments.length} giao dịch ngày ${selectedDate}.`);
             };
 
             window.toggleMenuManager = show => {
@@ -1119,6 +1392,8 @@
             };
 
             window.switchView = view => {
+                if (state.role === 'kitchen') view = 'kds';
+                if (!state.role || state.role === 'guest') view = 'guest';
                 const isGuest = view !== 'kds';
                 document.getElementById('view-guest').classList.toggle('hidden', !isGuest);
                 document.getElementById('bar-bottom-cart').classList.toggle('hidden', !isGuest);
@@ -1128,24 +1403,7 @@
                 if (!isGuest) renderKds();
             };
 
-            window.changeTable = table => {
-                if (!state.tables.includes(table)) {
-                    showToast('Bàn đã chọn không nằm trong danh sách hiện tại.', true);
-                    renderTableSelector();
-                    return;
-                }
-
-                const previousTable = state.table;
-                state.table = table;
-                if (!saveState()) {
-                    state.table = previousTable;
-                    renderTableSelector();
-                    return;
-                }
-                renderTableSelector();
-            };
-
-            window.saveTableNames = () => {
+            window.saveTableNames = async () => {
                 const input = document.getElementById('table-names-input').value;
                 const tables = input.split(/\r?\n/).map(table => table.trim()).filter(Boolean);
                 const uniqueNames = new Set(tables.map(table => table.toLocaleLowerCase('vi-VN')));
@@ -1167,63 +1425,31 @@
                     return;
                 }
 
-                const previousTables = state.tables;
-                const previousTable = state.table;
-                state.tables = tables;
-                if (!tables.includes(state.table)) state.table = tables[0];
-                if (!saveState()) {
-                    state.tables = previousTables;
-                    state.table = previousTable;
-                    renderTableSelector();
-                    return;
+                try {
+                    await api('PUT', '/api/tables', { tables });
+                    await refreshState(true);
+                    showToast(`Đã lưu danh sách ${tables.length} bàn. Link/QR cũ của bàn đổi tên không còn dùng được.`);
+                } catch (error) {
+                    reportError(error);
                 }
-
-                renderTableSelector();
-                showToast(`Đã lưu danh sách ${tables.length} bàn.`);
             };
 
-            window.toggleMenuItem = id => {
-                const item = menu.find(menuItem => menuItem.id === id);
-                if (!item) {
-                    showToast('Không tìm thấy món cần cập nhật.', true);
-                    return;
+            window.toggleMenuItem = async id => {
+                try {
+                    await api('POST', `/api/menu/${encodeURIComponent(id)}/toggle`);
+                    await refreshState(true);
+                } catch (error) {
+                    reportError(error);
                 }
-
-                const wasHidden = state.hiddenMenuItemIds.includes(id);
-                const previousHiddenIds = state.hiddenMenuItemIds;
-                const previousCart = state.cart;
-                state.hiddenMenuItemIds = wasHidden
-                    ? state.hiddenMenuItemIds.filter(hiddenId => hiddenId !== id)
-                    : [...state.hiddenMenuItemIds, id];
-                if (!wasHidden && state.cart[id]) {
-                    state.cart = { ...state.cart };
-                    delete state.cart[id];
-                }
-
-                if (!saveState()) {
-                    state.hiddenMenuItemIds = previousHiddenIds;
-                    state.cart = previousCart;
-                    return;
-                }
-
-                renderMenu();
-                renderMenuManagerItems();
-                renderCart();
-                showToast(wasHidden ? `Đã hiện lại “${item.name}”.` : `Đã ẩn “${item.name}” khỏi thực đơn.`);
             };
 
-            window.requestService = request => {
-                state.services.push({
-                    id: `SRV-${Date.now()}-${nextId++}`,
-                    table: state.table,
-                    request,
-                    createdAt: Date.now(),
-                    done: false
-                });
-                renderKds();
-                saveState();
-                playChime();
-                showToast(`Đã gửi yêu cầu “${request}” đến bếp.`);
+            window.requestService = async request => {
+                try {
+                    await api('POST', '/api/services', { request });
+                    showToast(`Đã gửi yêu cầu “${request}” đến bếp.`);
+                } catch (error) {
+                    reportError(error);
+                }
             };
 
             window.filterMenu = category => {
@@ -1294,30 +1520,13 @@
                     if (imageFile) {
                         image = await compressImage(imageFile);
                     } else if (imageUrl) {
-                        image = imageSource(imageUrl);
-                        if (!image) throw new Error('Đường dẫn ảnh phải bắt đầu bằng http:// hoặc https://.');
+                        image = imageUrl;
+                        if (!/^https?:\/\//i.test(image)) throw new Error('Đường dẫn ảnh phải bắt đầu bằng http:// hoặc https://.');
                     }
 
-                    const item = {
-                        id: `custom-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-                        name,
-                        category,
-                        description,
-                        price,
-                        image,
-                        icon: category === 'drinks' ? 'fa-mug-hot' : category === 'vege' ? 'fa-leaf' : 'fa-utensils'
-                    };
-                    menu.push(item);
-                    state.customMenuItems.push(item);
-                    if (!saveState()) {
-                        menu.pop();
-                        state.customMenuItems.pop();
-                        return;
-                    }
-
-                    renderMenu();
-                    renderMenuManagerItems();
-                    renderCart();
+                    const payload = { name, category, description, price, image };
+                    await api('POST', '/api/menu', payload);
+                    await refreshState(true);
                     form.reset();
                     toggleMenuManager(false);
                     showToast(`Đã thêm “${name}” vào thực đơn.`);
@@ -1327,33 +1536,23 @@
                 }
             });
 
-            window.sendOrderToKitchen = () => {
-                const items = menu.filter(item => state.cart[item.id]).map(item => ({
-                    name: item.name,
-                    quantity: state.cart[item.id],
-                    price: item.price
-                }));
+            window.sendOrderToKitchen = async () => {
+                const items = Object.entries(state.cart).map(([id, quantity]) => ({ id, quantity }));
                 if (!items.length) {
                     showToast('Hãy chọn món trước khi gửi bếp.', true);
                     return;
                 }
-                const order = {
-                    id: `ORD-${Date.now()}-${nextId++}`,
-                    table: state.table,
-                    items,
-                    total: cartTotal(),
-                    status: 'pending',
-                    createdAt: Date.now()
-                };
-                state.orders.push(order);
-                state.cart = {};
-                renderCart();
-                renderKds();
-                saveState();
-                playChime();
-                closeCart();
-                document.getElementById('success-message').textContent = `Bếp đã nhận đơn ${order.id} của ${order.table}. Tổng cộng: ${money(order.total)} đ.`;
-                document.getElementById('modal-success').classList.remove('hidden');
+                try {
+                    const order = await api('POST', '/api/orders', { items });
+                    state.cart = {};
+                    saveState();
+                    renderCart();
+                    closeCart();
+                    document.getElementById('success-message').textContent = `Bếp đã nhận đơn ${order.id} của ${order.table}. Tổng cộng: ${money(order.total)} đ.`;
+                    document.getElementById('modal-success').classList.remove('hidden');
+                } catch (error) {
+                    reportError(error);
+                }
             };
 
             window.closeSuccess = () => document.getElementById('modal-success').classList.add('hidden');
@@ -1400,42 +1599,41 @@
                 renderKds();
             };
 
-            window.advanceOrder = id => {
-                const order = state.orders.find(item => item.id === id);
-                if (!order) {
-                    showToast('Không tìm thấy đơn cần cập nhật.', true);
-                    return;
+            window.advanceOrder = async id => {
+                try {
+                    await api('POST', `/api/orders/${encodeURIComponent(id)}/advance`);
+                    await refreshState(true);
+                } catch (error) {
+                    reportError(error);
                 }
-                order.status = order.status === 'pending' ? 'cooking' : 'done';
-                renderKds();
-                saveState();
             };
 
-            window.completeService = id => {
-                const service = state.services.find(item => item.id === id);
-                if (!service) {
-                    showToast('Không tìm thấy yêu cầu dịch vụ.', true);
-                    return;
+            window.completeService = async id => {
+                try {
+                    await api('POST', `/api/services/${encodeURIComponent(id)}/done`);
+                    await refreshState(true);
+                } catch (error) {
+                    reportError(error);
                 }
-                service.done = true;
-                renderKds();
-                saveState();
             };
 
-            window.clearDoneOrders = () => {
+            window.clearDoneOrders = async () => {
                 const doneCount = state.orders.filter(order => order.status === 'done').length;
                 if (!doneCount) {
                     showToast('Chưa có đơn hoàn tất để dọn.');
                     return;
                 }
-                state.orders = state.orders.filter(order => order.status !== 'done');
-                renderKds();
-                saveState();
-                showToast(`Đã dọn ${doneCount} đơn hoàn tất.`);
+                try {
+                    await api('POST', '/api/orders/clear-done');
+                    await refreshState(true);
+                    showToast(`Đã dọn ${doneCount} đơn hoàn tất.`);
+                } catch (error) {
+                    reportError(error);
+                }
             };
 
             document.getElementById('payment-method').addEventListener('change', renderPaymentTransferDetails);
-            document.getElementById('account-settings-form').addEventListener('submit', event => {
+            document.getElementById('account-settings-form').addEventListener('submit', async event => {
                 event.preventDefault();
                 const account = {
                     bankName: document.getElementById('account-bank-name').value.trim(),
@@ -1449,18 +1647,18 @@
                     return;
                 }
 
-                const previousAccount = state.recipientAccount;
-                state.recipientAccount = account;
-                if (!saveState()) {
-                    state.recipientAccount = previousAccount;
-                    return;
+                try {
+                    await api('PUT', '/api/recipient', account);
+                    await refreshState(true);
+                    closeAccountSettings();
+                    renderPaymentTransferDetails();
+                    showToast('Đã lưu tài khoản nhận tiền.');
+                } catch (error) {
+                    reportError(error);
                 }
-                closeAccountSettings();
-                renderPaymentTransferDetails();
-                showToast('Đã lưu tài khoản nhận tiền trên trình duyệt này.');
             });
 
-            document.getElementById('payment-form').addEventListener('submit', event => {
+            document.getElementById('payment-form').addEventListener('submit', async event => {
                 event.preventDefault();
                 const order = state.orders.find(item => item.id === paymentOrderId);
                 const method = document.getElementById('payment-method').value;
@@ -1472,43 +1670,16 @@
                     showToast('Hãy cấu hình tài khoản và tạo được mã QR trước.', true);
                     return;
                 }
-                if (order.paymentStatus === 'paid' || state.paymentHistory.some(payment => payment.orderId === order.id)) {
+
+                try {
+                    await api('POST', `/api/orders/${encodeURIComponent(order.id)}/pay`, { method });
+                    const amount = orderTotal(order);
                     closePayment();
-                    showToast('Đơn này đã được ghi nhận thanh toán.', true);
-                    return;
+                    await refreshState(true);
+                    showToast(`Đã ghi nhận ${money(amount)} đ cho đơn ${order.id}.`);
+                } catch (error) {
+                    reportError(error);
                 }
-
-                const paidAt = Date.now();
-                const payment = {
-                    id: `PAY-${paidAt}-${nextId++}`,
-                    orderId: order.id,
-                    table: order.table,
-                    amount: orderTotal(order),
-                    method,
-                    paidAt
-                };
-                const previousPaymentStatus = order.paymentStatus;
-                const previousPaymentMethod = order.paymentMethod;
-                const previousPaidAt = order.paidAt;
-                order.paymentStatus = 'paid';
-                order.paymentMethod = method;
-                order.paidAt = paidAt;
-                state.paymentHistory.push(payment);
-
-                if (!saveState()) {
-                    state.paymentHistory.pop();
-                    delete order.paymentStatus;
-                    delete order.paymentMethod;
-                    delete order.paidAt;
-                    if (previousPaymentStatus !== undefined) order.paymentStatus = previousPaymentStatus;
-                    if (previousPaymentMethod !== undefined) order.paymentMethod = previousPaymentMethod;
-                    if (previousPaidAt !== undefined) order.paidAt = previousPaidAt;
-                    return;
-                }
-
-                renderKds();
-                closePayment();
-                showToast(`Đã ghi nhận ${money(payment.amount)} đ cho đơn ${order.id}.`);
             });
 
             document.getElementById('modal-cart').addEventListener('click', event => {
@@ -1528,18 +1699,16 @@
                     closeCart();
                     closePayment();
                     closeAccountSettings();
+                    closePasswordModal();
                     closeSuccess();
                 }
             });
             document.getElementById('payment-method').value = 'cash';
 
-            renderTableSelector();
-            renderMenuManagerItems();
             document.getElementById('audio-text').textContent = state.audio ? 'Chuông: Bật' : 'Chuông: Tắt';
             document.getElementById('audio-icon').className = `fa-solid ${state.audio ? 'fa-bell text-amber-400' : 'fa-bell-slash text-gray-500'}`;
-            renderMenu();
             renderCart();
-            renderKds();
+            boot();
         })();
     </script>
 
@@ -1548,6 +1717,18 @@
         (() => {
             const STORAGE_KEY = 'pos-kds-language';
             const dict = {
+                'Đăng nhập nhân viên': '员工登录',
+                'Dành cho quản lý và bếp': '仅限经理和厨房使用',
+                'Tài khoản': '账号',
+                'Mật khẩu': '密码',
+                'Đăng nhập': '登录',
+                'Đăng xuất': '退出登录',
+                'Đổi mật khẩu': '修改密码',
+                'Mật khẩu hiện tại': '当前密码',
+                'Lưu': '保存',
+                'Sao chép link': '复制链接',
+                'In QR': '打印二维码',
+                'Đổi mã': '更换二维码',
                 'LẨU VIỆT & BẾP SỐ': '越南火锅 & 数字厨房',
                 'Giải pháp Bếp KDS 0-Đồng Thiết Bị': '零硬件成本厨房显示系统方案',
                 'Chuông: Bật': '提示音：开',

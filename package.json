@@ -1,0 +1,11 @@
+{
+  "name": "restaurant-pos-kds",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Gọi món tại bàn và màn bếp KDS có đăng nhập, phân quyền",
+  "scripts": {
+    "start": "node server.js",
+    "reset-password": "node server.js reset-password"
+  },
+  "engines": { "node": ">=18" }
+}
