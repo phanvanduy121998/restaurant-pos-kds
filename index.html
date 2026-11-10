@@ -48,8 +48,8 @@
 
     <style>
         ::-webkit-scrollbar { width: 6px; height: 6px; }
-        ::-webkit-scrollbar-track { background: #0c0f17; }
-        ::-webkit-scrollbar-thumb { background: #334155; border-radius: 9999px; }
+        ::-webkit-scrollbar-track { background: #eef2f7; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 9999px; }
         ::-webkit-scrollbar-thumb:hover { background: #f59e0b; }
 
         @keyframes urgentPulse {
@@ -59,6 +59,40 @@
         .card-urgent {
             animation: urgentPulse 1.6s infinite ease-in-out;
         }
+
+        /* ===== Giao diện sáng hiện đại (ghi đè các class tối) ===== */
+        body.bg-\[\#0f141d\] { background: linear-gradient(180deg, #f8fafc 0%, #eef2f7 100%) !important; color: #0f172a !important; }
+        body .bg-\[\#161c27\], body .bg-\[\#161c28\], body .bg-\[\#141a24\]\/95 { background-color: rgba(255,255,255,.92) !important; backdrop-filter: blur(8px); }
+        body .bg-\[\#161b26\], body .bg-\[\#121620\], body .bg-\[\#1e2533\], body .bg-\[\#1e2535\] { background-color: #ffffff !important; }
+        body .bg-\[\#10141d\], body .bg-gray-950, body .bg-gray-900\/80 { background-color: #f1f5f9 !important; }
+        body .bg-gray-800, body .bg-gray-700 { background-color: #e2e8f0 !important; }
+        body .bg-black\/20, body .bg-black\/60 { background-color: #e8edf3 !important; }
+        body .bg-black\/80 { background-color: rgba(15,23,42,.45) !important; }
+        body .hover\:bg-gray-800:hover, body .hover\:bg-gray-700:hover, body .hover\:bg-\[\#1e2535\]:hover { background-color: #f1f5f9 !important; }
+
+        body .border-gray-700, body .border-gray-800, body .divide-gray-800 > * + *, body .border-\[\#141a24\] { border-color: #e2e8f0 !important; }
+
+        body .text-white, body .text-gray-100, body .text-gray-200 { color: #0f172a !important; }
+        body .text-gray-300 { color: #334155 !important; }
+        body .text-gray-400 { color: #64748b !important; }
+        body .text-gray-500 { color: #94a3b8 !important; }
+        body .text-amber-400, body .text-amber-300, body .text-amber-200 { color: #b45309 !important; }
+        body .text-emerald-300, body .text-emerald-400 { color: #047857 !important; }
+        body .text-blue-300, body .text-blue-400 { color: #1d4ed8 !important; }
+        body .text-red-300 { color: #b91c1c !important; }
+        body .hover\:text-white:hover { color: #0f172a !important; }
+
+        /* Giữ chữ trắng trên nút nền đậm */
+        body .bg-red-600, body .bg-emerald-600, body .bg-emerald-500.text-white, body .hover\:bg-emerald-500:hover { color: #fff !important; }
+        body .bg-red-600 { background-color: #dc2626 !important; }
+        body .bg-emerald-600 { background-color: #059669 !important; }
+        body .bg-amber-500 { color: #111827 !important; }
+
+        /* Banner và thẻ */
+        body .from-\[\#241711\], body .from-\[\#322114\] { --tw-gradient-from: #fff7ed var(--tw-gradient-from-position) !important; --tw-gradient-to: rgba(255,247,237,0) var(--tw-gradient-to-position) !important; --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important; }
+        body .via-\[\#1a212f\], body .via-\[\#1d2430\] { --tw-gradient-stops: var(--tw-gradient-from), #ffffff var(--tw-gradient-via-position), var(--tw-gradient-to) !important; }
+        body .to-\[\#171a24\], body .to-\[\#121620\] { --tw-gradient-to: #f8fafc var(--tw-gradient-to-position) !important; }
+        body .shadow-lg, body .shadow-xl { box-shadow: 0 10px 30px -12px rgba(15,23,42,.18) !important; }
     </style>
 </head>
 <body class="bg-[#0f141d] text-gray-100 font-sans min-h-screen selection:bg-amber-500 selection:text-black antialiased">
