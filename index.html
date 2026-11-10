@@ -112,6 +112,12 @@
         </div>
 
         <div class="flex items-center gap-2 sm:gap-3">
+            <!-- Chọn ngôn ngữ -->
+            <label class="sr-only" for="lang-select">Ngôn ngữ / 语言</label>
+            <select id="lang-select" class="rounded-xl border border-gray-700 bg-gray-800 px-2 py-2 text-xs font-bold text-gray-300 focus:outline-none focus:border-amber-500 cursor-pointer">
+                <option value="vi">🇻🇳 Tiếng Việt</option>
+                <option value="zh">🇨🇳 简体中文</option>
+            </select>
             <!-- Nút bật tắt chuông -->
             <button onclick="toggleAudio()" id="btn-audio" class="p-2 sm:px-3 sm:py-1.5 rounded-xl bg-gray-800 hover:bg-gray-700 text-gray-300 text-xs flex items-center gap-1.5 transition border border-gray-700">
                 <i class="fa-solid fa-bell text-amber-400" id="audio-icon"></i>
@@ -634,6 +640,7 @@
                     }
                     : null;
             }
+            defaultMenu.forEach(item => { item.image = `images/${item.id}.jpg`; });
             const validCategories = new Set(['hotpot', 'meat', 'vege', 'drinks']);
             const categoryIcons = { hotpot: 'fa-fire-burner', meat: 'fa-drumstick-bite', vege: 'fa-leaf', drinks: 'fa-mug-hot' };
             const customMenuItems = state.customMenuItems.filter(item =>
@@ -676,6 +683,7 @@
             function imageSource(value) {
                 if (typeof value !== 'string') return '';
                 if (/^data:image\/(?:jpeg|png|webp);base64,/i.test(value)) return value;
+                if (/^images\/[\w-]+\.jpg$/.test(value)) return value;
                 try {
                     const url = new URL(value);
                     return url.protocol === 'https:' || url.protocol === 'http:' ? url.href : '';
@@ -1532,6 +1540,310 @@
             renderMenu();
             renderCart();
             renderKds();
+        })();
+    </script>
+
+    <!-- Song ngữ Việt / 简体中文: dịch giao diện, giữ nguyên tên món và tên bàn -->
+    <script>
+        (() => {
+            const STORAGE_KEY = 'pos-kds-language';
+            const dict = {
+                'LẨU VIỆT & BẾP SỐ': '越南火锅 & 数字厨房',
+                'Giải pháp Bếp KDS 0-Đồng Thiết Bị': '零硬件成本厨房显示系统方案',
+                'Chuông: Bật': '提示音：开',
+                'Chuông: Tắt': '提示音：关',
+                'Bàn Khách': '顾客桌台',
+                'Màn Hình Bếp (KDS)': '厨房屏幕 (KDS)',
+                'Hệ Thống Gọi Món Trực Tiếp Tại Bàn': '桌边直接点餐系统',
+                'Đang phục vụ': '服务中',
+                'Chọn món trực tiếp trên điện thoại/máy tính bảng. Đơn sẽ bắn thẳng về màn hình bếp mà không cần gọi phục vụ hay viết giấy.': '直接在手机/平板上点餐，订单会立即发送到厨房屏幕，无需呼叫服务员或手写订单。',
+                'Chọn bàn:': '选择桌台：',
+                'Quản lý thực đơn': '菜单管理',
+                'Thêm món, ẩn món không cần bán và quản lý danh sách bàn.': '添加菜品、隐藏不售卖的菜品，并管理桌台列表。',
+                'Thêm món mới': '添加新菜品',
+                'Tên món *': '菜品名称 *',
+                'Giá (VNĐ) *': '价格 (VNĐ) *',
+                'Danh mục *': '分类 *',
+                'Nồi lẩu & nước dùng': '火锅与汤底',
+                'Thịt bò & hải sản': '牛肉与海鲜',
+                'Rau, nấm & đậu': '蔬菜、菌菇与豆制品',
+                'Đồ uống': '饮品',
+                'Mô tả': '描述',
+                'Mô tả ngắn về món ăn': '菜品简短描述',
+                'Ảnh món từ máy/điện thoại': '从设备/手机上传菜品图片',
+                'Hoặc dán đường dẫn ảnh': '或粘贴图片链接',
+                'Nếu chọn cả ảnh tải lên và đường dẫn, ảnh tải lên sẽ được dùng. Món đã thêm được lưu trên trình duyệt này.': '如果同时选择了上传图片和链接，将使用上传的图片。已添加的菜品保存在此浏览器中。',
+                'Hủy': '取消',
+                'Lưu món': '保存菜品',
+                'Quản lý món hiện có': '管理现有菜品',
+                'Món bị ẩn sẽ không hiện trong thực đơn; lịch sử đơn cũ vẫn được giữ. Có thể bật lại bất cứ lúc nào.': '被隐藏的菜品不会显示在菜单中；历史订单仍会保留，可随时重新显示。',
+                'Tùy chỉnh tên bàn': '自定义桌台名称',
+                'Nhập tên mỗi bàn trên một dòng. Thứ tự dòng là thứ tự hiển thị; đơn cũ vẫn giữ tên bàn lúc đặt.': '每行输入一个桌台名称。行的顺序即显示顺序；旧订单保留下单时的桌台名称。',
+                'Danh sách tên bàn, mỗi bàn một dòng': '桌台名称列表，每行一个',
+                'Lưu danh sách bàn': '保存桌台列表',
+                'Thêm nước lẩu': '加汤底',
+                'Nước dùng miễn phí': '免费汤底',
+                'Xin thêm nước lẩu': '请加火锅汤底',
+                'Đá lạnh & Trà': '冰块与茶',
+                'Thêm ca đá hoặc trà': '加一壶冰块或茶',
+                'Thêm đá lạnh & Trà đá': '请加冰块和冰茶',
+                'Đổi bát đĩa': '更换碗碟',
+                'Chén, đũa, muôi lẩu': '碗、筷子、火锅勺',
+                'Đổi bát đĩa, muôi lẩu mới': '请更换碗碟和火锅勺',
+                'Yêu cầu tính tiền': '请求结账',
+                'Chuẩn bị hóa đơn': '准备账单',
+                'Yêu cầu thanh toán tiền bàn': '请求结账',
+                'Tất Cả Món': '全部菜品',
+                'Nồi Lẩu & Nước Dùng': '火锅与汤底',
+                'Thịt Bò & Hải Sản Nhúng': '涮牛肉与海鲜',
+                'Rau Xanh, Nấm & Đậu': '蔬菜、菌菇与豆制品',
+                'Bia, Trà & Nước Giải Khát': '啤酒、茶与饮料',
+                'Đĩa món đã chọn:': '已选菜品：',
+                'Kiểm Tra Bàn': '查看订单',
+                'Bắn Đơn Sang Bếp KDS': '发送订单到厨房 KDS',
+                'ĐIỀU HÀNH BẾP SỐ (KDS)': '数字厨房调度 (KDS)',
+                'TRỰC TIẾP': '实时',
+                'Chạm 1-chạm vào món để đổi trạng thái:': '点击菜品即可切换状态：',
+                'Chờ nấu': '待制作',
+                'Đang nấu': '制作中',
+                'Ra món': '已出餐',
+                'Tất Cả (': '全部 (',
+                'Chờ Nấu (': '待制作 (',
+                'Đang Nấu (': '制作中 (',
+                'Cấu hình QR nhận tiền': '收款二维码设置',
+                'Dọn Đơn Xong': '清理已完成订单',
+                'Lịch sử thanh toán': '支付记录',
+                'Các đơn đã thanh toán trên trình duyệt này.': '此浏览器上已支付的订单。',
+                'Tổng đã thu': '已收总额',
+                'Lọc ngày:': '按日期筛选：',
+                'Xuất Excel': '导出 Excel',
+                'Xóa lịch sử ngày này': '删除当天记录',
+                'Thời gian': '时间',
+                'Mã đơn': '订单号',
+                'Bàn': '桌台',
+                'Phương thức': '支付方式',
+                'Số tiền': '金额',
+                'Chưa có giao dịch thanh toán nào.': '暂无支付记录。',
+                'Danh Sách Món Bàn Đã Chọn': '已选菜品清单',
+                'Tổng tạm tính:': '小计：',
+                'Xóa tất cả': '全部清除',
+                'Xác Nhận Gửi Bếp': '确认发送到厨房',
+                'Ghi nhận thanh toán': '记录支付',
+                'Đóng': '关闭',
+                'Tổng tiền đơn': '订单总额',
+                'Phương thức thanh toán': '支付方式',
+                'Tiền mặt': '现金',
+                'Chuyển khoản': '转账',
+                'Thẻ ngân hàng': '银行卡',
+                'Quét QR để chuyển khoản đúng số tiền và nội dung': '扫描二维码，按准确金额和内容转账',
+                'Chưa cấu hình tài khoản nhận tiền.': '尚未设置收款账户。',
+                'Cấu hình tài khoản ngay': '立即设置账户',
+                'Nội dung:': '转账内容：',
+                'App chưa tự nhận biến động số dư. Chỉ xác nhận sau khi tự kiểm tra tiền đã vào tài khoản.': '应用不会自动识别账户余额变动。请自行确认款项已到账后再确认。',
+                'Xác nhận sẽ ghi nhận thanh toán toàn bộ đơn và không thể ghi thu lần thứ hai.': '确认后将记录整张订单已付款，且不能重复记录。',
+                'Xác nhận đã thu': '确认已收款',
+                'Xác nhận đã nhận tiền': '确认已收到款项',
+                'Tài khoản nhận chuyển khoản': '收款转账账户',
+                'Thông tin được lưu cục bộ trong trình duyệt này.': '信息仅保存在此浏览器本地。',
+                'Tên ngân hàng *': '银行名称 *',
+                'Ví dụ: Vietcombank': '例如：Vietcombank',
+                'Mã BIN ngân hàng (6 chữ số) *': '银行 BIN 码（6 位数字）*',
+                'Ví dụ: 970436': '例如：970436',
+                'Số tài khoản *': '账号 *',
+                'Số tài khoản nhận tiền': '收款账号',
+                'Tên chủ tài khoản *': '账户持有人姓名 *',
+                'Hãy kiểm tra kỹ mã BIN và số tài khoản trước khi dùng. Tên chủ tài khoản sẽ được ngân hàng hiển thị khi khách quét QR.': '使用前请仔细核对 BIN 码和账号。顾客扫码时，银行会显示账户持有人姓名。',
+                'Lưu tài khoản': '保存账户',
+                'Đã gửi đơn đến bếp!': '订单已发送到厨房！',
+                'Bếp đã nhận được món của bàn.': '厨房已收到该桌的菜品。',
+                'Ví dụ: Lẩu riêu cua': '例如：蟹汤火锅',
+                'Ví dụ: 199000': '例如：199000',
+                'Bàn 1 Bàn 2 Phòng VIP': '桌台 1，桌台 2，VIP 包间',
+                'Thêm món': '加入菜品',
+                'Đang ẩn': '已隐藏',
+                'Đang bán': '在售',
+                'Hiện lại': '重新显示',
+                'Ẩn món': '隐藏菜品',
+                'Danh mục này hiện chưa có món.': '该分类暂无菜品。',
+                'Chưa có món nào trong giỏ.': '购物车中还没有菜品。',
+                'Giảm số lượng': '减少数量',
+                'Tăng số lượng': '增加数量',
+                'Đã xử lý': '已处理',
+                'Đã ra món': '已出餐',
+                'Đơn đã hoàn tất': '订单已完成',
+                'Đánh dấu đã ra món': '标记为已出餐',
+                'Bắt đầu nấu': '开始制作',
+                'Đã thanh toán': '已支付',
+                'Không thể tạo mã QR cho đơn này.': '无法为此订单生成二维码。'
+            };
+
+            const sentences = [
+                ['Không lưu được dữ liệu trên trình duyệt.', '无法在浏览器中保存数据。'],
+                ['Dữ liệu QR không hợp lệ hoặc quá dài.', '二维码数据无效或过长。'],
+                ['Không tải được thư viện tạo QR. Hãy kiểm tra kết nối mạng rồi tải lại trang.', '无法加载二维码库。请检查网络连接后刷新页面。'],
+                ['Chưa tải được thư viện Excel. Vui lòng kiểm tra kết nối mạng.', '无法加载 Excel 库。请检查网络连接。'],
+                ['Không có giao dịch phù hợp để xuất báo cáo.', '没有可导出报表的交易。'],
+                ['Hãy chọn ngày trước khi xóa lịch sử thanh toán.', '删除支付记录前请先选择日期。'],
+                ['Không có lịch sử thanh toán trong ngày đã chọn.', '所选日期没有支付记录。'],
+                ['Vui lòng chọn tệp hình ảnh.', '请选择图片文件。'],
+                ['Ảnh gốc quá lớn (tối đa 15 MB).', '原图过大（最大 15 MB）。'],
+                ['Trình duyệt chưa hỗ trợ xử lý ảnh. Em có thể dán đường dẫn ảnh.', '浏览器不支持图片处理，您可以粘贴图片链接。'],
+                ['Không thể xử lý ảnh này.', '无法处理此图片。'],
+                ['Ảnh vẫn quá lớn sau khi nén. Hãy chọn ảnh nhỏ hơn hoặc dùng đường dẫn ảnh.', '压缩后图片仍然过大。请选择更小的图片或使用图片链接。'],
+                ['Đã bật chuông.', '已开启提示音。'],
+                ['Đã tắt chuông.', '已关闭提示音。'],
+                ['Bàn đã chọn không nằm trong danh sách hiện tại.', '所选桌台不在当前列表中。'],
+                ['Danh sách cần có ít nhất một tên bàn.', '列表中至少需要一个桌台名称。'],
+                ['Chỉ có thể cấu hình tối đa 100 bàn.', '最多只能设置 100 个桌台。'],
+                ['Mỗi tên bàn không được dài quá 60 ký tự.', '每个桌台名称不能超过 60 个字符。'],
+                ['Danh sách có tên bàn bị trùng.', '列表中有重复的桌台名称。'],
+                ['Không tìm thấy món cần cập nhật.', '找不到要更新的菜品。'],
+                ['Không tìm thấy món ăn.', '找不到菜品。'],
+                ['Đã thêm món vào giỏ.', '已加入购物车。'],
+                ['Đã xóa các món đang chọn.', '已清除所选菜品。'],
+                ['Vui lòng nhập tên món và giá hợp lệ.', '请输入菜品名称和有效价格。'],
+                ['Đường dẫn ảnh phải bắt đầu bằng http:// hoặc https://.', '图片链接必须以 http:// 或 https:// 开头。'],
+                ['Không thể thêm món này.', '无法添加此菜品。'],
+                ['Hãy chọn món trước khi gửi bếp.', '发送到厨房前请先选择菜品。'],
+                ['Không tìm thấy đơn cần thanh toán.', '找不到要支付的订单。'],
+                ['Đơn này đã được ghi nhận thanh toán.', '此订单已记录支付。'],
+                ['Không tìm thấy đơn cần cập nhật.', '找不到要更新的订单。'],
+                ['Không tìm thấy yêu cầu dịch vụ.', '找不到服务请求。'],
+                ['Chưa có đơn hoàn tất để dọn.', '没有可清理的已完成订单。'],
+                ['Hãy kiểm tra tên ngân hàng, mã BIN và số tài khoản.', '请检查银行名称、BIN 码和账号。'],
+                ['Đã lưu tài khoản nhận tiền trên trình duyệt này.', '收款账户已保存在此浏览器中。'],
+                ['Không thể xác nhận thanh toán cho đơn này.', '无法确认此订单的支付。'],
+                ['Hãy cấu hình tài khoản và tạo được mã QR trước.', '请先设置账户并生成二维码。']
+            ];
+            sentences.forEach(([vi, zh]) => { dict[vi] = zh; });
+
+            const t = (value) => translate(value);
+            const patterns = [
+                [/^Bàn: (.+)$/, (m) => `桌台：${m[1]}`],
+                [/^Tổng: (.+)$/, (m) => `合计：${t(m[1])}`],
+                [/^Tổng cộng: (.+)$/, (m) => `合计：${t(m[1])}`],
+                [/^Yêu cầu • (.+)$/, (m) => `请求 • ${m[1]}`],
+                [/^Đã thanh toán · (.+)$/, (m) => `已支付 · ${t(m[1])}`],
+                [/^Đã xuất (\d+) giao dịch ra file Excel\.$/, (m) => `已将 ${m[1]} 笔交易导出为 Excel 文件。`],
+                [/^Đã xóa (\d+) giao dịch ngày (.+)\.$/, (m) => `已删除 ${m[2]} 的 ${m[1]} 笔交易。`],
+                [/^Bạn có chắc muốn xóa (\d+) giao dịch ngày (.+)\?$/, (m) => `确定要删除 ${m[2]} 的 ${m[1]} 笔交易吗？`],
+                [/^Đã lưu danh sách (\d+) bàn\.$/, (m) => `已保存 ${m[1]} 个桌台的列表。`],
+                [/^Đã hiện lại “(.+)”\.$/, (m) => `已重新显示“${m[1]}”。`],
+                [/^Đã ẩn “(.+)” khỏi thực đơn\.$/, (m) => `已从菜单中隐藏“${m[1]}”。`],
+                [/^Đã gửi yêu cầu “(.+)” đến bếp\.$/, (m) => `已将请求“${t(m[1])}”发送给厨房。`],
+                [/^Đã thêm “(.+)” vào thực đơn\.$/, (m) => `已将“${m[1]}”添加到菜单。`],
+                [/^Bếp đã nhận đơn (\S+) của (.+)\. Tổng cộng: (.+)$/, (m) => `厨房已收到 ${m[2]} 的订单 ${m[1]}。合计：${t(m[3])}`],
+                [/^Đã dọn (\d+) đơn hoàn tất\.$/, (m) => `已清理 ${m[1]} 个已完成订单。`],
+                [/^Đã ghi nhận (.+) cho đơn (\S+)\.$/, (m) => `已为订单 ${m[2]} 记录 ${t(m[1])}。`]
+            ];
+
+            function translateCore(core) {
+                if (dict[core] !== undefined) return dict[core];
+                if (core.includes(' · ')) {
+                    const parts = core.split(' · ');
+                    const out = parts.map(translateCore);
+                    if (out.some((part, i) => part !== parts[i])) return out.join(' · ');
+                }
+                for (const [regex, build] of patterns) {
+                    const match = core.match(regex);
+                    if (match) return build(match);
+                }
+                return core.replace(/(\d[\d.,]*) đ(?![\p{L}])/gu, '$1 ₫');
+            }
+
+            function translate(value) {
+                if (typeof value !== 'string') return value;
+                const lead = value.match(/^\s*/)[0];
+                const trail = value.match(/\s*$/)[0];
+                const core = value.trim().replace(/\s+/g, ' ');
+                if (!core) return value;
+                const translated = translateCore(core);
+                return translated === core ? value : lead + translated + trail;
+            }
+
+            let lang = 'vi';
+            try { lang = localStorage.getItem(STORAGE_KEY) === 'zh' ? 'zh' : 'vi'; } catch (error) { lang = 'vi'; }
+
+            const originals = new WeakMap();
+            const outputs = new WeakMap();
+            const attrs = ['placeholder', 'aria-label', 'title'];
+            const skipTags = new Set(['SCRIPT', 'STYLE', 'TEXTAREA']);
+
+            function applyText(node) {
+                const current = node.nodeValue;
+                if (lang === 'zh') {
+                    if (outputs.get(node) === current) return;
+                    originals.set(node, current);
+                    const translated = translate(current);
+                    if (translated !== current) {
+                        outputs.set(node, translated);
+                        node.nodeValue = translated;
+                    }
+                } else if (originals.has(node) && outputs.get(node) === current) {
+                    node.nodeValue = originals.get(node);
+                    outputs.delete(node);
+                }
+            }
+
+            function applyAttrs(element) {
+                attrs.forEach(name => {
+                    if (!element.hasAttribute(name)) return;
+                    const key = `data-i18n-${name}`;
+                    const current = element.getAttribute(name);
+                    if (lang === 'zh') {
+                        if (element.getAttribute(`${key}-out`) === current) return;
+                        element.setAttribute(key, current);
+                        const translated = translate(current);
+                        if (translated !== current) {
+                            element.setAttribute(`${key}-out`, translated);
+                            element.setAttribute(name, translated);
+                        }
+                    } else if (element.hasAttribute(key) && element.getAttribute(`${key}-out`) === current) {
+                        element.setAttribute(name, element.getAttribute(key));
+                        element.removeAttribute(`${key}-out`);
+                    }
+                });
+            }
+
+            function walk(root) {
+                if (root.nodeType === Node.TEXT_NODE) {
+                    if (!skipTags.has(root.parentNode?.tagName)) applyText(root);
+                    return;
+                }
+                if (root.nodeType !== Node.ELEMENT_NODE || skipTags.has(root.tagName)) return;
+                applyAttrs(root);
+                root.childNodes.forEach(walk);
+            }
+
+            const observer = new MutationObserver(mutations => {
+                mutations.forEach(mutation => {
+                    if (mutation.type === 'childList') mutation.addedNodes.forEach(walk);
+                    else if (mutation.type === 'characterData') walk(mutation.target);
+                    else if (mutation.type === 'attributes') applyAttrs(mutation.target);
+                });
+            });
+
+            function setLanguage(next) {
+                lang = next === 'zh' ? 'zh' : 'vi';
+                try { localStorage.setItem(STORAGE_KEY, lang); } catch (error) { /* bỏ qua */ }
+                document.documentElement.lang = lang === 'zh' ? 'zh-CN' : 'vi';
+                document.title = lang === 'zh' ? '数字厨房与越南火锅菜单 | 零硬件 KDS' : 'Bếp Số & Thực Đơn Lẩu Việt Nam | Zero-Hardware KDS';
+                document.getElementById('lang-select').value = lang;
+                walk(document.body);
+            }
+
+            const nativeConfirm = window.confirm.bind(window);
+            window.confirm = message => nativeConfirm(lang === 'zh' ? translate(message) : message);
+
+            observer.observe(document.body, {
+                childList: true,
+                subtree: true,
+                characterData: true,
+                attributes: true,
+                attributeFilter: attrs
+            });
+            document.getElementById('lang-select').addEventListener('change', event => setLanguage(event.target.value));
+            setLanguage(lang);
         })();
     </script>
 </body>
