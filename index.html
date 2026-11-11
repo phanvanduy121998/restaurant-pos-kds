@@ -330,7 +330,7 @@
                 <button onclick="openCart()" class="px-3 sm:px-4 py-2.5 rounded-xl border border-gray-700 hover:border-amber-500 text-gray-200 text-xs sm:text-sm font-bold transition">
                     Kiểm Tra Bàn
                 </button>
-                <button onclick="sendOrderToKitchen()" id="btn-send-order" disabled class="px-4 sm:px-6 py-2.5 rounded-xl bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-500 hover:to-amber-400 text-black font-black text-xs sm:text-sm flex items-center gap-2 shadow-xl transition transform active:scale-95 disabled:opacity-40 disabled:pointer-events-none">
+                <button type="button" onclick="sendOrderToKitchen()" id="btn-send-order" disabled class="px-4 sm:px-6 py-2.5 rounded-xl bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-500 hover:to-amber-400 text-black font-black text-xs sm:text-sm flex items-center gap-2 shadow-xl transition transform active:scale-95 disabled:opacity-40 disabled:pointer-events-none">
                     <i class="fa-solid fa-paper-plane text-xs"></i>
                     <span>Bắn Đơn Sang Bếp KDS</span>
                 </button>
@@ -472,7 +472,7 @@
                     <button onclick="resetCart()" class="px-4 py-2.5 rounded-xl border border-gray-700 hover:border-red-500 text-gray-400 hover:text-red-400 text-xs font-bold transition">
                         Xóa tất cả
                     </button>
-                    <button onclick="sendOrderToKitchen()" class="flex-1 py-3 rounded-xl bg-gradient-to-r from-amber-600 to-amber-500 text-black font-black text-sm flex items-center justify-center gap-2 shadow-xl hover:from-amber-500 hover:to-amber-400 transition active:scale-95">
+                    <button type="button" onclick="sendOrderToKitchen()" id="btn-send-order-modal" disabled class="flex-1 py-3 rounded-xl bg-gradient-to-r from-amber-600 to-amber-500 text-black font-black text-sm flex items-center justify-center gap-2 shadow-xl hover:from-amber-500 hover:to-amber-400 transition active:scale-95 disabled:opacity-40 disabled:pointer-events-none">
                         <i class="fa-solid fa-paper-plane"></i>
                         <span>Xác Nhận Gửi Bếp</span>
                     </button>
@@ -648,6 +648,11 @@
             let paymentOrderId = null;
             let transferQrReady = false;
             let knownAlertIds = null;
+            const ORDER_REQUEST_LIMIT = 3;
+            const ORDER_REQUEST_WINDOW_MS = 30000;
+            const orderRateStates = new Map();
+            let orderSending = false;
+            let orderCooldownTimer = null;
             const paymentMethodLabels = { cash: 'Tiền mặt', transfer: 'Chuyển khoản', card: 'Thẻ ngân hàng' };
 
             try {
@@ -694,6 +699,7 @@
                     if (response.status === 401 && state.role && state.role !== 'guest') showLogin();
                     const error = new Error(data.error || `Lỗi máy chủ (${response.status}).`);
                     error.status = response.status;
+                    error.retryAfterMs = Number(data.retryAfterMs) || 0;
                     throw error;
                 }
                 return data;
@@ -1068,6 +1074,37 @@
                 return Object.values(state.cart).reduce((total, quantity) => total + quantity, 0);
             }
 
+            function activeOrderRateState(now = Date.now()) {
+                const key = tableToken || state.table || 'unknown-table';
+                let rateState = orderRateStates.get(key);
+                if (!rateState) {
+                    rateState = { attempts: [], blockedUntil: 0 };
+                    orderRateStates.set(key, rateState);
+                }
+                rateState.attempts = rateState.attempts.filter(time => now - time < ORDER_REQUEST_WINDOW_MS);
+                return rateState;
+            }
+
+            function orderCooldownMs(now = Date.now()) {
+                const rateState = activeOrderRateState(now);
+                const localCooldown = rateState.attempts.length >= ORDER_REQUEST_LIMIT
+                    ? rateState.attempts[0] + ORDER_REQUEST_WINDOW_MS - now
+                    : 0;
+                return Math.max(0, localCooldown, rateState.blockedUntil - now);
+            }
+
+            function updateOrderSubmitButtons() {
+                const cooldown = orderCooldownMs();
+                const disabled = orderSending || cooldown > 0 || cartQuantity() === 0;
+                document.getElementById('btn-send-order').disabled = disabled;
+                document.getElementById('btn-send-order-modal').disabled = disabled;
+
+                clearTimeout(orderCooldownTimer);
+                if (!orderSending && cooldown > 0) {
+                    orderCooldownTimer = setTimeout(updateOrderSubmitButtons, cooldown + 10);
+                }
+            }
+
             function cartTotal() {
                 return menu.reduce((total, item) => total + item.price * (state.cart[item.id] || 0), 0);
             }
@@ -1178,7 +1215,7 @@
                 document.getElementById('label-cart-badge').textContent = quantity;
                 document.getElementById('label-cart-total').textContent = money(total);
                 document.getElementById('label-modal-total').textContent = `${money(total)} đ`;
-                document.getElementById('btn-send-order').disabled = quantity === 0;
+                updateOrderSubmitButtons();
                 const selected = menu.filter(item => state.cart[item.id]);
                 document.getElementById('cart-items-list').innerHTML = selected.length ? selected.map(item => `
                     <div class="flex items-center justify-between gap-3 border-b border-gray-800 pb-3">
@@ -1537,11 +1574,24 @@
             });
 
             window.sendOrderToKitchen = async () => {
+                const cooldown = orderCooldownMs();
+                if (orderSending) return;
+                if (cooldown > 0) {
+                    showToast(`Bàn này đang giới hạn gửi đơn. Vui lòng đợi ${Math.ceil(cooldown / 1000)} giây.`, true);
+                    updateOrderSubmitButtons();
+                    return;
+                }
+
                 const items = Object.entries(state.cart).map(([id, quantity]) => ({ id, quantity }));
                 if (!items.length) {
                     showToast('Hãy chọn món trước khi gửi bếp.', true);
                     return;
                 }
+
+                const rateState = activeOrderRateState();
+                rateState.attempts.push(Date.now());
+                orderSending = true;
+                updateOrderSubmitButtons();
                 try {
                     const order = await api('POST', '/api/orders', { items });
                     state.cart = {};
@@ -1551,7 +1601,15 @@
                     document.getElementById('success-message').textContent = `Bếp đã nhận đơn ${order.id} của ${order.table}. Tổng cộng: ${money(order.total)} đ.`;
                     document.getElementById('modal-success').classList.remove('hidden');
                 } catch (error) {
-                    reportError(error);
+                    if (error.status === 429) {
+                        rateState.blockedUntil = Math.max(rateState.blockedUntil, Date.now() + error.retryAfterMs);
+                        showToast(error.message, true);
+                    } else {
+                        reportError(error);
+                    }
+                } finally {
+                    orderSending = false;
+                    updateOrderSubmitButtons();
                 }
             };
 

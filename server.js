@@ -146,11 +146,11 @@ function rateLimit(key, limit, windowMs) {
     const bucket = (rateBuckets.get(key) || []).filter(time => now - time < windowMs);
     if (bucket.length >= limit) {
         rateBuckets.set(key, bucket);
-        return false;
+        return { allowed: false, retryAfterMs: Math.max(1, bucket[0] + windowMs - now) };
     }
     bucket.push(now);
     rateBuckets.set(key, bucket);
-    return true;
+    return { allowed: true, retryAfterMs: 0 };
 }
 setInterval(() => {
     const now = Date.now();
@@ -161,7 +161,11 @@ setInterval(() => {
 
 /* ---------- Tiện ích HTTP ---------- */
 class HttpError extends Error {
-    constructor(status, message) { super(message); this.status = status; }
+    constructor(status, message, details = {}) {
+        super(message);
+        this.status = status;
+        this.retryAfterMs = details.retryAfterMs;
+    }
 }
 function send(res, status, body, headers = {}) {
     const payload = typeof body === 'string' || Buffer.isBuffer(body) ? body : JSON.stringify(body);
@@ -337,7 +341,11 @@ async function handleApi(req, res, url) {
     /* --- Khách (token bàn) --- */
     if (method === 'POST' && pathname === '/api/orders') {
         const table = guestTable(req);
-        if (!rateLimit(`order|${table.token}`, 10, 60000)) throw new HttpError(429, 'Bạn gửi đơn quá nhanh, vui lòng đợi một chút.');
+        const orderLimit = rateLimit(`order|${table.token}`, 3, 30000);
+        if (!orderLimit.allowed) {
+            const seconds = Math.ceil(orderLimit.retryAfterMs / 1000);
+            throw new HttpError(429, `Bàn này đã gửi 3 đơn trong 30 giây. Vui lòng đợi ${seconds} giây rồi thử lại.`, orderLimit);
+        }
         const body = await readJson(req, 16384);
         if (!Array.isArray(body.items) || !body.items.length || body.items.length > 50) throw new HttpError(400, 'Danh sách món không hợp lệ.');
         const menu = new Map(allMenu().map(item => [item.id, item]));
@@ -367,7 +375,7 @@ async function handleApi(req, res, url) {
 
     if (method === 'POST' && pathname === '/api/services') {
         const table = guestTable(req);
-        if (!rateLimit(`service|${table.token}`, 10, 60000)) throw new HttpError(429, 'Bạn gửi yêu cầu quá nhanh.');
+        if (!rateLimit(`service|${table.token}`, 10, 60000).allowed) throw new HttpError(429, 'Bạn gửi yêu cầu quá nhanh.');
         const body = await readJson(req, 2048);
         const request = String(body.request || '').trim().slice(0, 80);
         const allowed = ['Xin thêm nước lẩu', 'Thêm đá lạnh & Trà đá', 'Đổi bát đĩa, muôi lẩu mới', 'Yêu cầu thanh toán tiền bàn'];
@@ -564,7 +572,15 @@ if (process.argv[2] === 'reset-password') {
             else if (req.method === 'GET' || req.method === 'HEAD') serveStatic(req, res, url);
             else send(res, 405, 'Method not allowed');
         } catch (error) {
-            if (error instanceof HttpError) return send(res, error.status, { error: error.message });
+            if (error instanceof HttpError) {
+                const body = { error: error.message };
+                const headers = {};
+                if (Number.isFinite(error.retryAfterMs)) {
+                    body.retryAfterMs = error.retryAfterMs;
+                    headers['Retry-After'] = String(Math.ceil(error.retryAfterMs / 1000));
+                }
+                return send(res, error.status, body, headers);
+            }
             console.error(error);
             send(res, 500, { error: 'Lỗi máy chủ.' });
         }
